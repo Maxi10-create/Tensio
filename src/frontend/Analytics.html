@@ -1,0 +1,79 @@
+<section class="view" id="view-analytics" aria-labelledby="anaTitle">
+  <h1 class="large-title" id="anaTitle">Analyse</h1>
+  <p class="subtitle">Kennzahlen auf Basis von Tagesmitteln</p>
+  <div class="segmented full" role="group" aria-label="Zeitraum" id="anaPeriod">
+    <button type="button" data-p="30d" aria-pressed="false">30 T</button>
+    <button type="button" data-p="90d" aria-pressed="true">90 T</button>
+    <button type="button" data-p="1y" aria-pressed="false">1 J</button>
+    <button type="button" data-p="3y" aria-pressed="false">3 J</button>
+    <button type="button" data-p="all" aria-pressed="false">Alle</button>
+  </div>
+  <div id="anaBody" style="margin-top:12px">
+    <div class="card"><div class="skeleton sk-line"></div><div class="skeleton sk-line"></div><div class="skeleton sk-line" style="width:60%"></div></div>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  var period = '90d';
+
+  function statRow(label, key, digits, suffix) {
+    return function (a) {
+      var f = function (s) { var v = s[key]; return v === null || v === undefined ? '–' : App.fmt.n(v, digits) + (suffix || ''); };
+      return '<tr><td>' + label + '</td><td>' + f(a.systolic) + '</td><td>' + f(a.diastolic) + '</td><td>' + f(a.pulse) + '</td></tr>';
+    };
+  }
+  var ROWS = [
+    statRow('Mittelwert', 'mean', 0), statRow('Median', 'median', 0),
+    statRow('Standardabweichung', 'sd', 1), statRow('Variationskoeffizient', 'cv', 1, ' %'),
+    statRow('Minimum', 'min', 0), statRow('Maximum', 'max', 0),
+    statRow('10. Perzentil', 'p10', 0), statRow('90. Perzentil', 'p90', 0)
+  ];
+
+  function render(a) {
+    var body = App.$('#anaBody');
+    if (!a.daysWithData) {
+      body.innerHTML = '<div class="card empty"><h3>Keine Daten im Zeitraum</h3><p>Wähle einen längeren Zeitraum oder erfasse Messungen.</p></div>';
+      return;
+    }
+    var t = a.trend;
+    var trendLine = t.n >= 14
+      ? 'Lineare Trendsteigung: SYS ' + App.fmt.signed(t.systolicPer30Days) + ' mmHg, DIA ' + App.fmt.signed(t.diastolicPer30Days) + ' mmHg pro 30 Tage (aus ' + t.n + ' Tagesmitteln).'
+      : 'Für eine Trendsteigung werden mindestens 14 Tage mit Messungen benötigt (aktuell ' + t.n + ').';
+    var cat = a.meanCategory;
+    body.innerHTML =
+      '<div class="card"><div class="card-head"><span class="card-title">Datengrundlage</span></div>' +
+        '<p style="margin:0">' + a.nMeasurements + ' Messungen an ' + a.daysWithData + ' von ' + a.windowDays + ' Tagen (Messabdeckung ' + App.fmt.pct(a.coverage) + ').</p>' +
+        '<p class="footnote" style="margin:6px 0 0">' + App.esc(App.fmt.date(a.from) + ' – ' + App.fmt.date(a.to)) + '. Mehrere Messungen an einem Tag werden zuerst zu einem Tagesmittel zusammengefasst; gelöschte und als Messfehler markierte Messungen sind ausgeschlossen.</p>' +
+      '</div>' +
+      '<div class="group-label">Kennzahlen</div>' +
+      '<div class="card table-scroll"><table class="stats"><thead><tr><th></th><th>SYS</th><th>DIA</th><th>Puls</th></tr></thead><tbody>' +
+        ROWS.map(function (r) { return r(a); }).join('') +
+        '<tr><td>Tage mit Werten</td><td>' + a.systolic.n + '</td><td>' + a.diastolic.n + '</td><td>' + a.pulse.n + '</td></tr>' +
+      '</tbody></table></div>' +
+      '<div class="group-label">Trend</div>' +
+      '<div class="card"><p style="margin:0">' + App.esc(trendLine) + '</p></div>' +
+      (cat ? '<div class="group-label">Einordnung des Mittelwerts</div><div class="card">' +
+        '<p style="margin:0"><strong>' + App.esc(cat.label) + '</strong> nach ' + App.esc(cat.guideline) + ' (' + App.esc(cat.method) + ').</p>' +
+        '<p class="footnote" style="margin:6px 0 0">Orientierung, keine Diagnose: Die Referenzwerte gelten für standardisierte Heim-Messserien. Tägliche Einzelmessungen unter wechselnden Bedingungen sind nur eingeschränkt vergleichbar. Bitte Werte ärztlich besprechen.</p></div>' : '') +
+      (a.monthly.length ? '<div class="group-label">Monatsmittel</div><div class="card table-scroll"><table class="stats"><thead><tr><th>Monat</th><th>SYS</th><th>DIA</th><th>Puls</th><th>Tage</th></tr></thead><tbody>' +
+        a.monthly.slice().reverse().map(function (m) {
+          return '<tr><td>' + App.esc(App.fmt.month(m.key)) + '</td><td>' + App.fmt.n(m.systolic) + '</td><td>' + App.fmt.n(m.diastolic) + '</td><td>' + App.fmt.n(m.pulse) + '</td><td>' + m.daysWithData + '</td></tr>';
+        }).join('') + '</tbody></table></div>' : '') +
+      '<p class="caption" style="margin:16px 4px">Verteilung, Variabilität, Kalenderansicht und Gesundheitsereignisse folgen in der nächsten Ausbaustufe.</p>';
+  }
+
+  function load() {
+    App.$$('#anaPeriod button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-p') === period)); });
+    App.api('getAnalytics', { period: period }).then(render).catch(App.showError);
+  }
+
+  window.TensioViews.analytics = {
+    init: function () {
+      App.$$('#anaPeriod button').forEach(function (b) { b.onclick = function () { period = b.getAttribute('data-p'); load(); }; });
+    },
+    show: load
+  };
+})();
+</script>

@@ -1,0 +1,203 @@
+<section class="view" id="view-measurements" aria-labelledby="measTitle">
+  <h1 class="large-title" id="measTitle">Messungen</h1>
+  <p class="subtitle" id="measSubtitle">&nbsp;</p>
+
+  <div id="measActive">
+    <label class="search">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color:var(--text-3)"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <span class="sr-only">Suchen</span>
+      <input type="search" id="measSearch" placeholder="Suchen: Wert, Datum, Notiz">
+    </label>
+    <div class="filters">
+      <div class="segmented" role="group" aria-label="Quelle" id="measSource">
+        <button type="button" data-v="" aria-pressed="true">Alle</button>
+        <button type="button" data-v="app" aria-pressed="false">App</button>
+        <button type="button" data-v="historical_import" aria-pressed="false">Import</button>
+      </div>
+      <label><span class="sr-only">Zeitraum</span>
+        <select id="measPeriod">
+          <option value="">Gesamter Zeitraum</option>
+          <option value="30">Letzte 30 Tage</option>
+          <option value="90">Letzte 90 Tage</option>
+          <option value="365">Letztes Jahr</option>
+          <option value="custom">Benutzerdefiniert …</option>
+        </select>
+      </label>
+      <label><span class="sr-only">Nur auffällige</span>
+        <select id="measFlag">
+          <option value="">Alle Messungen</option>
+          <option value="flagged">Nur auffällige</option>
+          <option value="duplicate">Mögliche Duplikate</option>
+          <option value="invalid">Als Messfehler markiert</option>
+        </select>
+      </label>
+    </div>
+    <div class="filters" id="measCustom" hidden>
+      <label class="footnote">Von <input type="date" id="measFrom"></label>
+      <label class="footnote">Bis <input type="date" id="measTo"></label>
+    </div>
+    <div id="measList" aria-live="polite">
+      <div class="list" style="margin-top:12px">
+        <div class="row"><div class="grow"><div class="skeleton sk-line" style="width:40%"></div><div class="skeleton sk-line" style="width:25%"></div></div></div>
+        <div class="row"><div class="grow"><div class="skeleton sk-line" style="width:45%"></div><div class="skeleton sk-line" style="width:20%"></div></div></div>
+        <div class="row"><div class="grow"><div class="skeleton sk-line" style="width:35%"></div><div class="skeleton sk-line" style="width:30%"></div></div></div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <button type="button" class="link-btn" id="measShowDeleted">Kürzlich gelöscht</button>
+    </div>
+  </div>
+
+  <div id="measDeleted" hidden>
+    <button type="button" class="link-btn" id="measBack">‹ Alle Messungen</button>
+    <h2 class="section-title" style="margin-top:4px">Kürzlich gelöscht</h2>
+    <p class="footnote">Gelöschte Messungen fließen nicht in Analysen ein und können jederzeit wiederhergestellt werden.</p>
+    <div id="measDeletedList"></div>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  var PAGE = 150;
+  var limit = PAGE;
+  var filter = { q: '', source: '', period: '', flag: '', from: '', to: '' };
+
+  function matches(m, today) {
+    if (filter.source && m.source !== filter.source) return false;
+    if (filter.flag === 'flagged' && !(m.flags && m.flags.length)) return false;
+    if (filter.flag === 'duplicate' && !m.duplicate_of) return false;
+    if (filter.flag === 'invalid' && m.is_valid !== false) return false;
+    if (filter.period === 'custom') {
+      if (filter.from && m.measurement_date < filter.from) return false;
+      if (filter.to && m.measurement_date > filter.to) return false;
+    } else if (filter.period) {
+      if (App.dayNumber(today) - App.dayNumber(m.measurement_date) >= +filter.period) return false;
+    }
+    if (filter.q) {
+      var q = filter.q.toLowerCase();
+      var hay = [m.systolic + '/' + m.diastolic, String(m.pulse || ''), m.notes, App.fmt.date(m.measurement_date), App.fmt.dateLong(m.measurement_date),
+        m.measurement_date.split('-').reverse().join('.'),
+        (m.context_tags || []).map(function (k) { return App.labelFor('contextTags', k); }).join(' '),
+        (m.symptoms || []).map(function (k) { return App.labelFor('symptoms', k); }).join(' ')].join(' ').toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  }
+
+  function rowHtml(m, deleted) {
+    var pills = [];
+    (m.flags || []).forEach(function (f) { pills.push('<span class="pill warn">⚠︎ ' + App.esc(App.FLAG_LABELS[f] || f) + '</span>'); });
+    if (m.duplicate_of) pills.push('<span class="pill">Duplikat?</span>');
+    if (m.is_valid === false) pills.push('<span class="pill danger">Messfehler</span>');
+    if (m.source === 'historical_import') pills.push('<span class="pill">Import</span>');
+    if ((m.context_tags || []).length || (m.symptoms || []).length || m.notes) pills.push('<span class="pill" title="Kontext oder Notiz vorhanden">✎</span>');
+    return '<button type="button" class="row" data-id="' + App.esc(m.id) + '">' +
+      '<span class="grow"><span class="label">' + App.esc(App.fmt.dayMonth(m.measurement_date)) + '</span><br>' +
+      '<span class="detail">' + (m.measurement_time ? App.esc(m.measurement_time) + ' Uhr' : 'Uhrzeit unbekannt') + '</span>' +
+      (pills.length ? '<span class="pills">' + pills.join('') + '</span>' : '') + '</span>' +
+      '<span class="row-value"' + (m.is_valid === false ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + m.systolic + '/' + m.diastolic +
+      '<small>' + (m.pulse !== null ? 'Puls ' + m.pulse : 'mmHg') + '</small></span>' +
+      (deleted ? '' : '<svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>') +
+      '</button>';
+  }
+
+  function render() {
+    var all = App.state.measurements || [];
+    var today = App.state.boot.today;
+    var list = all.filter(function (m) { return matches(m, today); });
+    App.$('#measSubtitle').textContent = all.length
+      ? (list.length === all.length ? all.length + ' Messungen' : list.length + ' von ' + all.length + ' Messungen')
+      : ' ';
+    var box = App.$('#measList');
+    if (!all.length) {
+      box.innerHTML = '<div class="card empty" style="margin-top:12px"><h3>Noch keine Messungen</h3><p>Neue Messungen erscheinen hier chronologisch.</p></div>';
+      return;
+    }
+    if (!list.length) {
+      box.innerHTML = '<div class="card empty" style="margin-top:12px"><h3>Keine Treffer</h3><p>Passe Suche oder Filter an.</p></div>';
+      return;
+    }
+    var html = [];
+    var month = null;
+    list.slice(0, limit).forEach(function (m) {
+      var mk = m.measurement_date.slice(0, 7);
+      if (mk !== month) {
+        if (month) html.push('</div>');
+        html.push('<div class="month-head">' + App.fmt.month(mk) + '</div><div class="list">');
+        month = mk;
+      }
+      html.push(rowHtml(m));
+    });
+    html.push('</div>');
+    if (list.length > limit) html.push('<div style="text-align:center;margin-top:12px"><button type="button" class="btn small" id="measMore">Weitere ' + Math.min(PAGE, list.length - limit) + ' anzeigen</button></div>');
+    box.innerHTML = html.join('');
+    var more = App.$('#measMore');
+    if (more) more.onclick = function () { limit += PAGE; render(); };
+  }
+
+  function byId(id) {
+    var l = App.state.measurements || [];
+    for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i];
+    return null;
+  }
+
+  function showDeleted() {
+    App.$('#measActive').hidden = true;
+    App.$('#measDeleted').hidden = false;
+    var box = App.$('#measDeletedList');
+    box.innerHTML = '<p class="footnote">Lädt …</p>';
+    App.api('listMeasurements', { deletedOnly: true }).then(function (list) {
+      App.state.deleted = list;
+      if (!list.length) { box.innerHTML = '<div class="card empty"><p>Keine gelöschten Messungen.</p></div>'; return; }
+      box.innerHTML = '<div class="list">' + list.map(function (m) {
+        return '<div class="row"><span class="grow"><span class="label">' + App.esc(App.fmt.dayMonth(m.measurement_date)) + ' · ' + m.systolic + '/' + m.diastolic + '</span><br>' +
+          '<span class="caption">gelöscht ' + App.esc(new Date(m.deleted_at).toLocaleDateString('de-DE')) + '</span></span>' +
+          '<button type="button" class="btn small" data-restore="' + App.esc(m.id) + '">Wiederherstellen</button></div>';
+      }).join('') + '</div>';
+      App.$$('[data-restore]', box).forEach(function (b) {
+        b.onclick = function () { b.disabled = true; App.views.sheets.restore(b.getAttribute('data-restore')).then(showDeleted); };
+      });
+    }).catch(App.showError);
+  }
+
+  function hideDeleted() {
+    App.$('#measActive').hidden = false;
+    App.$('#measDeleted').hidden = true;
+  }
+
+  window.TensioViews.measurements = {
+    init: function () {
+      var t;
+      App.$('#measSearch').addEventListener('input', function (e) {
+        clearTimeout(t);
+        t = setTimeout(function () { filter.q = e.target.value.trim(); limit = PAGE; render(); }, 150);
+      });
+      App.$$('#measSource button').forEach(function (b) {
+        b.onclick = function () {
+          App.$$('#measSource button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+          filter.source = b.getAttribute('data-v'); limit = PAGE; render();
+        };
+      });
+      App.$('#measPeriod').onchange = function (e) {
+        filter.period = e.target.value; App.$('#measCustom').hidden = filter.period !== 'custom'; limit = PAGE; render();
+      };
+      App.$('#measFlag').onchange = function (e) { filter.flag = e.target.value; limit = PAGE; render(); };
+      App.$('#measFrom').onchange = function (e) { filter.from = e.target.value; render(); };
+      App.$('#measTo').onchange = function (e) { filter.to = e.target.value; render(); };
+      App.$('#measList').addEventListener('click', function (e) {
+        var row = e.target.closest('[data-id]');
+        if (!row) return;
+        var m = byId(row.getAttribute('data-id'));
+        if (m) App.views.sheets.openDetail(m);
+      });
+      App.$('#measShowDeleted').onclick = showDeleted;
+      App.$('#measBack').onclick = function () { hideDeleted(); };
+    },
+    show: function () {
+      if (!App.$('#measDeleted').hidden) { showDeleted(); }
+      App.loadMeasurements().then(render).catch(App.showError);
+    }
+  };
+})();
+</script>

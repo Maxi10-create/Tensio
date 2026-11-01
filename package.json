@@ -1,0 +1,22 @@
+{
+  "name": "tensio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tensio – Blutdruck-Logger und Analyse auf Basis von Google Apps Script und Google Sheets",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "build": "node scripts/build.mjs",
+    "check": "npm test && npm run build",
+    "demo-data": "node scripts/generate-demo-data.mjs",
+    "preview": "npm run build && node scripts/serve-preview.mjs",
+    "push": "npm run build && clasp push",
+    "deploy": "npm run build && clasp push && clasp deploy"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2"
+  }
+}

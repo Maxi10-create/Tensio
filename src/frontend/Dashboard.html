@@ -1,0 +1,235 @@
+<section class="view active" id="view-dashboard" aria-labelledby="dashTitle">
+  <h1 class="large-title" id="dashTitle">Übersicht</h1>
+  <p class="subtitle" id="dashSubtitle">&nbsp;</p>
+  <div id="dashBody">
+    <div class="grid grid-dash">
+      <div class="card span-2"><div class="skeleton sk-line" style="width:40%"></div><div class="skeleton sk-big"></div><div class="skeleton sk-line" style="width:30%"></div></div>
+      <div class="card"><div class="skeleton sk-line" style="width:50%"></div><div class="skeleton sk-big"></div></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div class="skeleton sk-line" style="width:30%"></div><div class="skeleton sk-chart"></div></div>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  var chart = null;
+  var period = null;
+  var data = null;
+  var hidden = {};
+  var PERIODS = [['7d', '7 T'], ['30d', '30 T'], ['90d', '90 T'], ['1y', '1 J'], ['3y', '3 J'], ['all', 'Alle']];
+
+  function avgCard(title, s, days) {
+    var has = s.daysWithData > 0;
+    return '<div class="card">' +
+      '<div class="card-head"><span class="card-title">' + title + '</span></div>' +
+      '<div class="metric"><span class="value md">' + (has ? s.systolic + '/' + s.diastolic : '–') + '</span>' + (has ? '<span class="unit">mmHg</span>' : '') + '</div>' +
+      '<div class="metric-sub">' + (has ? 'an ' + s.daysWithData + ' von ' + days + ' Tagen gemessen' : 'Keine Messungen im Zeitraum') + '</div>' +
+      (has && s.pulse ? '<div class="caption" style="margin-top:2px">Puls Ø ' + s.pulse + ' /min</div>' : '') +
+      '</div>';
+  }
+
+  function trendText(c) {
+    if (!c.sufficient) {
+      return 'Für einen Vergleich der letzten 30 Tage mit den 30 Tagen davor werden in beiden Zeiträumen mindestens ' + c.minDays + ' Messtage benötigt (aktuell ' + c.current.daysWithData + ' bzw. ' + c.previous.daysWithData + ').';
+    }
+    var word = function (v) { return Math.abs(v) < 1 ? 'praktisch unverändert' : (v < 0 ? 'um ' + App.fmt.n(Math.abs(v)) + ' mmHg niedriger' : 'um ' + App.fmt.n(v) + ' mmHg höher'); };
+    return 'Im Mittel der letzten 30 Tage lag der systolische Wert ' + word(c.delta.systolic) + ' und der diastolische ' + word(c.delta.diastolic) +
+      ' als in den 30 Tagen davor (' + App.fmt.date(c.previous.from) + ' – ' + App.fmt.date(c.previous.to) + ').';
+  }
+
+  function render() {
+    var d = data;
+    App.$('#dashSubtitle').textContent = App.fmt.dateLong(d.today);
+    if (!d.totals.measurements) {
+      App.$('#dashBody').innerHTML =
+        '<div class="card empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>' +
+        '<h3>Noch keine Messungen</h3><p>Erfasse deine erste Blutdruckmessung. Das dauert nur wenige Sekunden.</p>' +
+        '<button class="btn primary" type="button" id="dashFirst">Erste Messung erfassen</button></div>';
+      App.$('#dashFirst').onclick = function () { App.views.sheets.openEntry(); };
+      return;
+    }
+    var l = d.latest;
+    var flags = (l.flags || []).map(function (f) { return '<span class="pill warn">⚠︎ ' + App.esc(App.FLAG_LABELS[f] || f) + '</span>'; }).join('');
+    var c = d.comparison30;
+    var a30 = d.avg30;
+
+    App.$('#dashBody').innerHTML =
+      '<div class="grid grid-dash">' +
+        '<button class="card span-2" type="button" id="latestCard" style="border:0;text-align:left;cursor:pointer;font:inherit;color:inherit">' +
+          '<div class="card-head"><span class="card-title"><span class="dot" style="background:var(--sys)"></span>Letzte Messung</span><span class="card-meta">' + App.esc(App.fmt.relative(l.date, l.time)) + '</span></div>' +
+          '<div class="metric"><span class="value">' + l.systolic + '/' + l.diastolic + '</span><span class="unit">mmHg</span>' +
+          (l.pulse !== null ? '<span class="unit" style="margin-left:10px">♥ ' + l.pulse + ' /min</span>' : '') + '</div>' +
+          (flags ? '<div class="pills">' + flags + '</div>' : '') +
+          '<div class="caption" style="margin-top:6px">Einzelmessung – keine Diagnose.</div>' +
+        '</button>' +
+        '<div class="grid grid-2" style="gap:12px">' + avgCard('Ø 7 Tage', d.avg7, 7) + avgCard('Ø 30 Tage', a30, 30) + '</div>' +
+      '</div>' +
+
+      '<div class="card" style="margin-top:12px">' +
+        '<div class="card-head"><span class="card-title">Blutdruckverlauf</span>' +
+          '<button class="icon-btn" type="button" id="chartExport" aria-label="Diagramm als Bild sichern" title="Als Bild sichern">' +
+          '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button></div>' +
+        '<div class="chart-toolbar"><div class="segmented" role="group" aria-label="Zeitraum" id="periodSeg">' +
+          PERIODS.map(function (p) { return '<button type="button" data-p="' + p[0] + '" aria-pressed="' + (p[0] === d.period) + '">' + p[1] + '</button>'; }).join('') +
+        '</div><span class="caption" id="chartRange"></span></div>' +
+        '<div class="chart-box"><canvas id="bpChart" role="img" aria-label="Blutdruckverlauf"></canvas></div>' +
+        '<div class="series-toggles" id="seriesToggles"></div>' +
+        '<p class="caption" style="margin:8px 2px 0">Punkte = Einzelmessungen (antippen für Details), Linien = gleitendes 7-Tage-Mittel der Tagesmittel. Gestrichelt: Referenzwert ' +
+          d.reference.systolic + '/' + d.reference.diastolic + ' mmHg für Heim-Mittelwerte (' + App.esc(d.reference.guideline) + ').</p>' +
+      '</div>' +
+
+      '<h2 class="section-title">Trend</h2>' +
+      '<div class="card"><div class="card-head"><span class="card-title">30-Tage-Vergleich</span>' +
+        (c.sufficient ? '<span class="card-meta num">SYS ' + App.fmt.signed(c.delta.systolic) + ' · DIA ' + App.fmt.signed(c.delta.diastolic) + '</span>' : '') + '</div>' +
+        '<p style="margin:4px 0 0">' + App.esc(trendText(c)) + '</p>' +
+        '<p class="footnote" style="margin:10px 0 0">In den letzten 30 Tagen wurden an ' + a30.daysWithData + ' Tagen Messungen dokumentiert (' + a30.nMeasurements + ' Messungen). Grundlage sind Tagesmittel.</p>' +
+      '</div>' +
+      '<div class="note-box">Alltagsmessungen zeigen den Verlauf. Für eine Einordnung nach Leitlinie ist eine standardisierte Messserie (morgens und abends über mehrere Tage) aussagekräftiger. Tensio stellt keine Diagnosen und gibt keine Therapieempfehlungen.</div>';
+
+    App.$('#latestCard').onclick = function () { App.views.sheets.openDetailById(l.id); };
+    App.$$('#periodSeg button').forEach(function (b) {
+      b.onclick = function () { period = b.getAttribute('data-p'); load(); };
+    });
+    App.$('#chartExport').onclick = function () {
+      if (chart) App.downloadDataUrl('tensio-verlauf_' + d.today + '.png', chart.toBase64Image('image/png', 1));
+    };
+    drawChart();
+  }
+
+  function seriesDefs() {
+    return [
+      { key: 'sys', label: 'Systolisch', color: App.cssVar('--sys'), kind: 'dot' },
+      { key: 'dia', label: 'Diastolisch', color: App.cssVar('--dia'), kind: 'dot' },
+      { key: 'ma', label: '7-Tage-Mittel', color: App.cssVar('--text-2'), kind: 'line' },
+      { key: 'ref', label: 'Referenz', color: App.cssVar('--ref'), kind: 'dash' }
+    ];
+  }
+
+  function toMs(date, time) {
+    var t = time ? time.split(':') : ['12', '00'];
+    return Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10), +t[0], +t[1]);
+  }
+
+  function withGaps(points, maxGapDays) {
+    var out = [];
+    for (var i = 0; i < points.length; i++) {
+      if (i && App.dayNumber(points[i].date) - App.dayNumber(points[i - 1].date) > maxGapDays) out.push({ x: toMs(points[i].date) - 43200000, y: null });
+      out.push(points[i]);
+    }
+    return out;
+  }
+
+  function drawChart() {
+    var d = data;
+    if (!window.Chart) {
+      App.$('.chart-box').innerHTML = '<div class="empty"><p>Das Diagramm konnte nicht geladen werden (keine Verbindung zu cdn.jsdelivr.net).</p></div>';
+      return;
+    }
+    var sys = App.cssVar('--sys'), dia = App.cssVar('--dia'), grid = App.cssVar('--separator'), txt = App.cssVar('--text-3'), ref = App.cssVar('--ref');
+    var many = d.chart.points.length > 120;
+    var pts = function (field) {
+      return d.chart.points.map(function (p) { return { x: toMs(p.date, p.time), y: p[field], id: p.id, date: p.date, time: p.time, sys: p.systolic, dia: p.diastolic, pulse: p.pulse }; });
+    };
+    var ma = function (field) {
+      return withGaps(d.chart.ma7.map(function (p) { return { x: toMs(p.date), y: p[field], date: p.date, n: p.daysInWindow }; }), 3);
+    };
+    var xMin = toMs(d.chart.from, '00:00'), xMax = toMs(d.chart.to, '23:59');
+    var line = function (y) { return [{ x: xMin, y: y }, { x: xMax, y: y }]; };
+    var alpha = function (c, a) {
+      var m = /^#([0-9a-f]{6})$/i.exec(c);
+      if (!m) return c;
+      var n = parseInt(m[1], 16);
+      return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + (a / 100) + ')';
+    };
+
+    var datasets = [
+      { key: 'sys', label: 'Systolisch', type: 'scatter', data: pts('systolic'), backgroundColor: alpha(sys, many ? 45 : 85), borderColor: sys, pointRadius: many ? 2 : 4, pointHoverRadius: 7, pointHitRadius: 10 },
+      { key: 'dia', label: 'Diastolisch', type: 'scatter', data: pts('diastolic'), backgroundColor: alpha(dia, many ? 45 : 85), borderColor: dia, pointRadius: many ? 2 : 4, pointHoverRadius: 7, pointHitRadius: 10 },
+      { key: 'ma', label: 'SYS 7-Tage-Mittel', type: 'line', data: ma('systolic'), borderColor: sys, borderWidth: 2.5, pointRadius: 0, tension: 0.3, spanGaps: false },
+      { key: 'ma', label: 'DIA 7-Tage-Mittel', type: 'line', data: ma('diastolic'), borderColor: dia, borderWidth: 2.5, pointRadius: 0, tension: 0.3, spanGaps: false },
+      { key: 'ref', label: 'Referenz SYS', type: 'line', data: line(d.reference.systolic), borderColor: alpha(ref, 70), borderDash: [5, 5], borderWidth: 1.2, pointRadius: 0 },
+      { key: 'ref', label: 'Referenz DIA', type: 'line', data: line(d.reference.diastolic), borderColor: alpha(ref, 70), borderDash: [5, 5], borderWidth: 1.2, pointRadius: 0 }
+    ];
+    datasets.forEach(function (ds) { ds.hidden = !!hidden[ds.key]; ds.parsing = false; });
+
+    var span = (xMax - xMin) / 86400000;
+    var fmtTick = function (v) {
+      var dt = new Date(v);
+      var ds = dt.toISOString().slice(0, 10);
+      return span > 400 ? App.fmt.month(ds.slice(0, 7)).replace(/^(\S{3})\S*/, '$1') : App.fmt.dateShort(ds);
+    };
+
+    if (chart) chart.destroy();
+    chart = new Chart(App.$('#bpChart'), {
+      type: 'scatter',
+      data: { datasets: datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false, animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 350 },
+        interaction: { mode: 'nearest', intersect: false, axis: 'xy' },
+        scales: {
+          x: { type: 'linear', min: xMin, max: xMax, grid: { display: false }, border: { display: false },
+            ticks: { color: txt, maxTicksLimit: 6, callback: fmtTick, font: { size: 11 } } },
+          y: { position: 'right', suggestedMin: 60, suggestedMax: 160, grid: { color: grid }, border: { display: false },
+            ticks: { color: txt, maxTicksLimit: 6, font: { size: 11 } } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: function (item) { return item.dataset.key !== 'ref'; },
+            callbacks: {
+              title: function (items) {
+                var r = items[0].raw;
+                return App.fmt.dayMonth(r.date) + (r.time ? ', ' + r.time + ' Uhr' : '');
+              },
+              label: function (item) {
+                var r = item.raw;
+                if (item.dataset.key === 'ma') return item.dataset.label + ': ' + Math.round(r.y) + ' mmHg (' + r.n + ' Tage)';
+                return item.dataset.label + ': ' + r.y + ' mmHg';
+              },
+              footer: function (items) {
+                var r = items[0].raw;
+                return r.id ? (r.pulse ? 'Puls ' + r.pulse + ' /min · ' : '') + 'Antippen für Details' : '';
+              }
+            }
+          }
+        },
+        onClick: function (evt) {
+          var hits = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, false);
+          for (var i = 0; i < hits.length; i++) {
+            var raw = chart.data.datasets[hits[i].datasetIndex].data[hits[i].index];
+            if (raw && raw.id) { App.views.sheets.openDetailById(raw.id); return; }
+          }
+        }
+      }
+    });
+    App.$('#chartRange').textContent = App.fmt.date(d.chart.from) + ' – ' + App.fmt.date(d.chart.to) + ' · ' + d.chart.points.length + ' Messungen';
+
+    App.$('#seriesToggles').innerHTML = seriesDefs().map(function (s) {
+      return '<button type="button" class="series-toggle" data-k="' + s.key + '" aria-pressed="' + !hidden[s.key] + '">' +
+        '<i class="' + s.kind + '" style="background:' + (s.kind === 'dash' ? 'none' : s.color) + '"></i>' + s.label + '</button>';
+    }).join('');
+    App.$$('#seriesToggles button').forEach(function (b) {
+      b.onclick = function () {
+        var k = b.getAttribute('data-k');
+        hidden[k] = !hidden[k];
+        b.setAttribute('aria-pressed', String(!hidden[k]));
+        chart.data.datasets.forEach(function (ds) { if (ds.key === k) ds.hidden = hidden[k]; });
+        chart.update();
+      };
+    });
+  }
+
+  function load() {
+    var p = period || App.state.boot.settings.preferred_chart_period;
+    return App.api('getDashboard', { period: p }).then(function (d) { data = d; period = d.period; render(); }).catch(function (err) {
+      App.$('#dashBody').innerHTML = '<div class="card empty"><h3>Übersicht nicht verfügbar</h3><p>' + App.esc(err.message) + '</p><button class="btn" type="button" onclick="App.views.dashboard.show()">Erneut versuchen</button></div>';
+    });
+  }
+
+  window.TensioViews.dashboard = {
+    init: function () { App.on('theme', function () { if (data && App.current === 'dashboard') drawChart(); }); },
+    show: load
+  };
+})();
+</script>
