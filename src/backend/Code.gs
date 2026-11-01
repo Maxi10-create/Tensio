@@ -43,10 +43,19 @@ function jsonOut_(obj) {
 function apiGet_(p) {
   var needed = PropertiesService.getScriptProperties().getProperty('ACCESS_KEY') || '';
   if (needed && String(p.key || '') !== needed) {
-    return jsonOut_({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Zugangsschlüssel fehlt oder ist falsch.' } });
+    var denied = JSON.stringify({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Zugangsschlüssel fehlt oder ist falsch.' } });
+    if (p.callback && /^[A-Za-z0-9_.]{1,64}$/.test(String(p.callback))) {
+      return ContentService.createTextOutput(String(p.callback) + '(' + denied + ');').setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    return ContentService.createTextOutput(denied).setMimeType(ContentService.MimeType.JSON);
   }
-  return ContentService.createTextOutput(api(String(p.method), p.payload || '{}'))
-    .setMimeType(ContentService.MimeType.JSON);
+  var text = api(String(p.method), p.payload || '{}');
+  // JSONP: Die statische Seite bindet die Antwort per <script> ein (kein CORS, keine Redirect-Probleme).
+  if (p.callback && /^[A-Za-z0-9_.]{1,64}$/.test(String(p.callback))) {
+    return ContentService.createTextOutput(String(p.callback) + '(' + text + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(text).setMimeType(ContentService.MimeType.JSON);
 }
 
 /** Liefert die Web-App aus. */
@@ -55,7 +64,12 @@ function doGet(e) {
     try {
       return apiGet_(e.parameter);
     } catch (err) {
-      return jsonOut_({ ok: false, error: { code: 'INTERNAL', message: String(err && err.message ? err.message : err) } });
+      var failure = JSON.stringify({ ok: false, error: { code: 'INTERNAL', message: String(err && err.message ? err.message : err) } });
+      var cb = String(e.parameter.callback || '');
+      if (cb && /^[A-Za-z0-9_.]{1,64}$/.test(cb)) {
+        return ContentService.createTextOutput(cb + '(' + failure + ');').setMimeType(ContentService.MimeType.JAVASCRIPT);
+      }
+      return ContentService.createTextOutput(failure).setMimeType(ContentService.MimeType.JSON);
     }
   }
   var auth = authorize_();
