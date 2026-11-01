@@ -24,16 +24,40 @@ function doPost(e) {
   if (needed && String(req.key || '') !== needed) {
     return jsonOut_({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Zugangsschlüssel fehlt oder ist falsch.' } });
   }
-  return ContentService.createTextOutput(api(String(req.method || ''), JSON.stringify(req.payload || {})))
-    .setMimeType(ContentService.MimeType.JSON);
+  try {
+    return ContentService.createTextOutput(api(String(req.method || ''), JSON.stringify(req.payload || {})))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return jsonOut_({ ok: false, error: { code: 'INTERNAL', message: String(err && err.message ? err.message : err) } });
+  }
 }
 
 function jsonOut_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
+/**
+ * Lesezugriffe der statischen Seite: GET ?method=...&payload={json}&key=...
+ * (ohne Weiterleitung, daher zuverlässig im Browser). Ohne "method" wird die Web-App ausgeliefert.
+ */
+function apiGet_(p) {
+  var needed = PropertiesService.getScriptProperties().getProperty('ACCESS_KEY') || '';
+  if (needed && String(p.key || '') !== needed) {
+    return jsonOut_({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Zugangsschlüssel fehlt oder ist falsch.' } });
+  }
+  return ContentService.createTextOutput(api(String(p.method), p.payload || '{}'))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
 /** Liefert die Web-App aus. */
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.method) {
+    try {
+      return apiGet_(e.parameter);
+    } catch (err) {
+      return jsonOut_({ ok: false, error: { code: 'INTERNAL', message: String(err && err.message ? err.message : err) } });
+    }
+  }
   var auth = authorize_();
   if (!auth.ok) {
     return HtmlService.createHtmlOutput(

@@ -1505,6 +1505,9 @@ table.stats tr:last-child td { border-bottom: 0; }
     }
   } catch (e) { /* ignorieren */ }
 
+  // Lesende Methoden gehen per GET (kein Redirect/CORS-Problem), schreibende per POST.
+  var READ_METHODS = ['bootstrap', 'getDashboard', 'getAnalytics', 'listMeasurements', 'getMeasurement', 'exportMeasurementsCsv'];
+
   App.api = function (method, payload) {
     return new Promise(function (resolve, reject) {
       var body = JSON.stringify(payload || {});
@@ -1524,14 +1527,22 @@ table.stats tr:last-child td { border-bottom: 0; }
       } else if (window.TENSIO_API) {
         var key = '';
         try { key = localStorage.getItem('tensio.key') || ''; } catch (e) { /* ignorieren */ }
-        fetch(window.TENSIO_API, {
-          method: 'POST',
-          redirect: 'follow',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ method: method, payload: payload || {}, key: key })
-        }).then(function (r) { return r.text(); })
+        var isRead = READ_METHODS.indexOf(method) >= 0;
+        var req;
+        if (isRead) {
+          req = fetch(window.TENSIO_API + '?method=' + encodeURIComponent(method) +
+            '&payload=' + encodeURIComponent(JSON.stringify(payload || {})) + '&key=' + encodeURIComponent(key), { cache: 'no-store' });
+        } else {
+          req = fetch(window.TENSIO_API, {
+            method: 'POST',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ method: method, payload: payload || {}, key: key })
+          });
+        }
+        req.then(function (r) { return r.text(); })
           .then(handle)
-          .catch(function () { reject({ code: 'NETWORK', message: 'Keine Verbindung zum Server. Prüfe die Internetverbindung. Falls sie besteht: In Apps Script muss die Bereitstellung "Wer hat Zugriff: Jeder" und die aktuelle Version haben.' }); });
+          .catch(function () { reject({ code: 'NETWORK', message: 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen und erneut versuchen.' }); });
       } else if (window.TensioPreviewApi) {
         setTimeout(function () { handle(window.TensioPreviewApi.call(method, body)); }, 120);
       } else {
