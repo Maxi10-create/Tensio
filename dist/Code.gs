@@ -1,0 +1,109 @@
+/**
+ * Tensio – Einstiegspunkte für Google Apps Script.
+ *
+ * Schichten:
+ *   Code.gs      Web-App, Menü, API-Einstieg (dieses File)
+ *   Auth.gs      Zugriffskontrolle
+ *   Database.gs  Google-Sheets-Repository, Einrichtung, Import-Hilfen
+ *   Core.js      gebündelte, plattformunabhängige Logik (global `Tensio`, aus src/core + src/analytics)
+ */
+
+/** Liefert die Web-App aus. */
+function doGet() {
+  var auth = authorize_();
+  if (!auth.ok) {
+    return HtmlService.createHtmlOutput(
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;padding:32px;max-width:480px;margin:auto">' +
+      '<h2>Kein Zugriff</h2><p>Dieses Konto ist für Tensio nicht freigeschaltet.</p></div>'
+    ).setTitle('Tensio');
+  }
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
+    .setTitle('Tensio')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .addMetaTag('apple-mobile-web-app-capable', 'yes')
+    .addMetaTag('mobile-web-app-capable', 'yes');
+}
+
+/** Bindet eine HTML-Teildatei ein (für <?!= include('Name'); ?>). */
+function include(name) {
+  return HtmlService.createHtmlOutputFromFile(name).getContent();
+}
+
+/**
+ * Zentrale API für das Frontend (google.script.run.api).
+ * Jede Anfrage wird serverseitig autorisiert; Schreibzugriffe laufen unter LockService.
+ * @param {string} method
+ * @param {string} payloadJson
+ * @return {string} JSON { ok, data | error }
+ */
+function api(method, payloadJson) {
+  var auth = authorize_();
+  if (!auth.ok) {
+    return JSON.stringify({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Kein Zugriff für dieses Konto.' } });
+  }
+  var payload = {};
+  try {
+    payload = payloadJson ? JSON.parse(payloadJson) : {};
+  } catch (e) {
+    return JSON.stringify({ ok: false, error: { code: 'VALIDATION', message: 'Ungültige Anfrage.' } });
+  }
+  var runtime = createRuntime_(auth.email);
+  if (!runtime.api.isWrite(method)) {
+    return JSON.stringify(runtime.api.call(method, payload));
+  }
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(15000)) {
+    return JSON.stringify({ ok: false, error: { code: 'CONFLICT', message: 'Gerade wird eine andere Änderung gespeichert. Bitte gleich noch einmal versuchen.' } });
+  }
+  try {
+    return JSON.stringify(runtime.api.call(method, payload));
+  } finally {
+    SpreadsheetApp.flush();
+    lock.releaseLock();
+  }
+}
+
+/** Baut die Laufzeitumgebung (Repository + Uhr + IDs) für eine Anfrage. */
+function createRuntime_(email) {
+  var repo = new SheetRepository_(getSpreadsheet_());
+  return {
+    repo: repo,
+    api: Tensio.Api.createApi({
+      repo: repo,
+      now: function () { return Date.now(); },
+      newId: function () { return Utilities.getUuid(); },
+      localParts: gasLocalParts_,
+      user: { email: email },
+      onError: function (e) { console.error(e && e.stack ? e.stack : e); }
+    })
+  };
+}
+
+/**
+ * Lokale Datums-/Zeitteile über Utilities.formatDate (zuverlässig in Apps Script).
+ * @return {{date: string, time: string, offsetMinutes: number}}
+ */
+function gasLocalParts_(ms, timeZone) {
+  var s = Utilities.formatDate(new Date(ms), timeZone, "yyyy-MM-dd'|'HH:mm'|'XXX");
+  var p = s.split('|');
+  var off = 0;
+  if (p[2] !== 'Z') {
+    var sign = p[2].charAt(0) === '-' ? -1 : 1;
+    off = sign * (parseInt(p[2].substr(1, 2), 10) * 60 + parseInt(p[2].substr(4, 2), 10));
+  }
+  return { date: p[0], time: p[1], offsetMinutes: off };
+}
+
+/** Menü im Spreadsheet. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('Tensio')
+    .addItem('Tabellenblätter einrichten / prüfen', 'setupSpreadsheet')
+    .addItem('Importierte Messungen vervollständigen', 'normalizeImportedMeasurements')
+    .addSeparator()
+    .addItem('Fiktive Demo-Daten einfügen', 'insertDemoData')
+    .addItem('Demo-Daten entfernen', 'removeDemoData')
+    .addToUi();
+}

@@ -1,0 +1,340 @@
+<!-- ========== Messung erfassen / bearbeiten ========== -->
+<dialog class="sheet" id="entrySheet" aria-labelledby="entryTitle">
+  <form id="entryForm" method="dialog" novalidate style="display:contents">
+    <div class="sheet-head">
+      <button type="button" class="link-btn left" data-close>Abbrechen</button>
+      <h2 id="entryTitle">Neue Messung</h2>
+      <span class="right"></span>
+    </div>
+    <div class="sheet-body">
+      <div class="form-error" id="entryError" role="alert" hidden></div>
+      <div class="bp-inputs">
+        <label class="bp-field" id="fSys">
+          <span class="lbl"><i style="background:var(--sys)"></i>Systolisch</span>
+          <input name="systolic" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="120" maxlength="3" aria-describedby="errSys" required>
+          <span class="unit">mmHg</span>
+        </label>
+        <label class="bp-field" id="fDia">
+          <span class="lbl"><i style="background:var(--dia)"></i>Diastolisch</span>
+          <input name="diastolic" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="80" maxlength="3" aria-describedby="errDia" required>
+          <span class="unit">mmHg</span>
+        </label>
+      </div>
+      <div class="field-error" id="errSys" hidden></div>
+      <div class="field-error" id="errDia" hidden></div>
+
+      <div class="list" style="margin-top:16px">
+        <label class="row"><span class="grow label">Puls</span>
+          <input name="pulse" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="optional" autocomplete="off" aria-describedby="errPulse">
+          <span class="detail">/min</span>
+        </label>
+        <label class="row"><span class="grow label">Datum</span><input name="measurement_date" type="date" required></label>
+        <label class="row" id="timeRow"><span class="grow label">Uhrzeit</span><input name="measurement_time" type="time"></label>
+        <label class="row switch-row"><span class="grow label">Uhrzeit unbekannt</span><input class="switch" type="checkbox" name="time_unknown"></label>
+      </div>
+      <div class="field-error" id="errPulse" hidden></div>
+      <div class="field-error" id="errDate" hidden></div>
+
+      <details class="more" id="moreDetails">
+        <summary><span>Kontext, Symptome &amp; Notiz</span><span class="caption" id="moreCount"></span></summary>
+        <div class="more-body">
+          <p class="footnote" style="margin:10px 0 8px">Einflussfaktoren (optional)</p>
+          <div class="chips" id="tagChips"></div>
+          <p class="footnote" style="margin:16px 0 8px">Symptome (optional)</p>
+          <div class="chips" id="symptomChips"></div>
+          <p class="footnote" style="margin:16px 0 8px">Notiz</p>
+          <textarea class="note" name="notes" maxlength="1000" placeholder="z. B. nach dem Aufstehen, linker Arm"></textarea>
+          <div class="switch-row" id="validRow" style="margin-top:14px" hidden>
+            <span><span class="label">Als Messfehler markieren</span><br><span class="caption">Wird dann aus Analysen ausgeschlossen, bleibt aber gespeichert.</span></span>
+            <input class="switch" type="checkbox" name="invalid">
+          </div>
+        </div>
+      </details>
+    </div>
+    <div class="sheet-foot">
+      <button type="submit" class="btn primary block" id="entrySave">Speichern</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ========== Messung – Details ========== -->
+<dialog class="sheet" id="detailSheet" aria-labelledby="detailTitle">
+  <div class="sheet-head">
+    <button type="button" class="link-btn left" data-close>Fertig</button>
+    <h2 id="detailTitle">Messung</h2>
+    <button type="button" class="link-btn right" id="detailEdit">Bearbeiten</button>
+  </div>
+  <div class="sheet-body" id="detailBody"></div>
+  <div class="sheet-foot" id="detailFoot">
+    <button type="button" class="btn block danger" id="detailDelete">Messung löschen</button>
+  </div>
+</dialog>
+
+<!-- ========== Alert ========== -->
+<dialog class="alert" id="alertDialog" aria-labelledby="alertTitle">
+  <div class="alert-body">
+    <h3 id="alertTitle"></h3>
+    <p id="alertMessage"></p>
+    <ul id="alertList" hidden></ul>
+  </div>
+  <div class="alert-actions" id="alertActions"></div>
+</dialog>
+
+<script>
+(function () {
+  'use strict';
+  var editing = null;      // Messung, die bearbeitet wird (oder null)
+  var detail = null;       // aktuell angezeigte Messung
+  var busy = false;
+
+  function form() { return App.$('#entryForm'); }
+
+  function nowLocal() {
+    var d = new Date();
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return { date: d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()), time: p(d.getHours()) + ':' + p(d.getMinutes()) };
+  }
+
+  function renderChips(container, list, selected) {
+    container.innerHTML = '';
+    list.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = o.label;
+      b.setAttribute('data-key', o.key);
+      b.setAttribute('aria-pressed', selected.indexOf(o.key) >= 0 ? 'true' : 'false');
+      b.onclick = function () {
+        var on = b.getAttribute('aria-pressed') !== 'true';
+        // „Keine Beschwerden“ schließt andere Symptome aus
+        if (container.id === 'symptomChips') {
+          App.$$('.chip', container).forEach(function (c) {
+            if (on && (o.key === 'none' ? c !== b : c.getAttribute('data-key') === 'none')) c.setAttribute('aria-pressed', 'false');
+          });
+        }
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        updateMoreCount();
+      };
+      container.appendChild(b);
+    });
+  }
+  function selectedKeys(container) {
+    return App.$$('.chip[aria-pressed="true"]', container).map(function (c) { return c.getAttribute('data-key'); });
+  }
+  function updateMoreCount() {
+    var n = selectedKeys(App.$('#tagChips')).length + selectedKeys(App.$('#symptomChips')).length + (form().notes.value.trim() ? 1 : 0);
+    App.$('#moreCount').textContent = n ? n + ' ausgewählt' : '';
+  }
+
+  function clearErrors() {
+    App.$('#entryError').hidden = true;
+    ['errSys', 'errDia', 'errPulse', 'errDate'].forEach(function (id) { App.$('#' + id).hidden = true; });
+    App.$('#fSys').classList.remove('invalid'); App.$('#fDia').classList.remove('invalid');
+  }
+  function showErrors(errors) {
+    var map = { systolic: 'errSys', diastolic: 'errDia', pulse: 'errPulse', measurement_date: 'errDate', measurement_time: 'errDate' };
+    var general = [];
+    (errors || []).forEach(function (e) {
+      var id = map[e.field];
+      if (id) { var el = App.$('#' + id); el.textContent = e.message; el.hidden = false; }
+      else general.push(e.message);
+      if (e.field === 'systolic') App.$('#fSys').classList.add('invalid');
+      if (e.field === 'diastolic') App.$('#fDia').classList.add('invalid');
+    });
+    if (general.length) { App.$('#entryError').textContent = general.join(' '); App.$('#entryError').hidden = false; }
+  }
+
+  function syncTimeUnknown() {
+    var unknown = form().time_unknown.checked;
+    form().measurement_time.disabled = unknown;
+    App.$('#timeRow').style.opacity = unknown ? 0.45 : 1;
+  }
+
+  function openEntry(m) {
+    editing = m || null;
+    var f = form();
+    f.reset();
+    clearErrors();
+    var opts = App.state.boot.options;
+    App.$('#entryTitle').textContent = editing ? 'Messung bearbeiten' : 'Neue Messung';
+    App.$('#validRow').hidden = !editing;
+    var n = nowLocal();
+    f.systolic.value = editing ? editing.systolic : '';
+    f.diastolic.value = editing ? editing.diastolic : '';
+    f.pulse.value = editing && editing.pulse !== null ? editing.pulse : '';
+    f.measurement_date.value = editing ? editing.measurement_date : n.date;
+    f.measurement_date.max = n.date;
+    f.measurement_time.value = editing ? editing.measurement_time : n.time;
+    f.time_unknown.checked = !!(editing && !editing.measurement_time);
+    f.notes.value = editing ? editing.notes : '';
+    f.invalid.checked = !!(editing && editing.is_valid === false);
+    renderChips(App.$('#tagChips'), opts.contextTags, editing ? editing.context_tags : []);
+    renderChips(App.$('#symptomChips'), opts.symptoms, editing ? editing.symptoms : []);
+    App.$('#moreDetails').open = !!(editing && (editing.context_tags.length || editing.symptoms.length || editing.notes));
+    updateMoreCount();
+    syncTimeUnknown();
+    App.$('#entrySheet').showModal();
+    setTimeout(function () { f.systolic.focus(); }, 60);
+  }
+
+  function collect() {
+    var f = form();
+    return {
+      systolic: f.systolic.value.trim(),
+      diastolic: f.diastolic.value.trim(),
+      pulse: f.pulse.value.trim(),
+      measurement_date: f.measurement_date.value,
+      measurement_time: f.time_unknown.checked ? '' : f.measurement_time.value,
+      measurement_type: editing ? editing.measurement_type : 'daily',
+      context_tags: selectedKeys(App.$('#tagChips')),
+      symptoms: selectedKeys(App.$('#symptomChips')),
+      notes: f.notes.value,
+      is_valid: !f.invalid.checked
+    };
+  }
+
+  function submit(confirmed) {
+    if (busy) return;
+    clearErrors();
+    var input = collect();
+    var method = editing ? 'updateMeasurement' : 'createMeasurement';
+    var payload = editing
+      ? { id: editing.id, input: input, confirmed: confirmed, expectedUpdatedAt: editing.updated_at }
+      : { input: input, confirmed: confirmed };
+    busy = true;
+    var btn = App.$('#entrySave');
+    btn.disabled = true; btn.textContent = 'Wird gespeichert …';
+    App.api(method, payload).then(function (saved) {
+      App.$('#entrySheet').close();
+      App.toast((editing ? 'Änderung gespeichert · ' : 'Gespeichert · ') + saved.systolic + '/' + saved.diastolic + ' mmHg');
+      App.dataChanged();
+      if (detail && editing && detail.id === saved.id) openDetail(saved);
+    }).catch(function (err) {
+      if (err.code === 'NEEDS_CONFIRMATION') {
+        var high = (err.details.warnings || []).some(function (w) { return /_high$/.test(w.code); });
+        var actions = [
+          { label: 'Trotzdem speichern', value: 'save', strong: true },
+          { label: 'Eingabe korrigieren', value: 'fix' }
+        ];
+        if (high && !App.$('#moreDetails').open) actions.splice(1, 0, { label: 'Kontext ergänzen', value: 'context' });
+        App.alert({
+          title: 'Ungewöhnliche Eingabe',
+          message: 'Bitte prüfe die Werte. Gespeichert wird genau das, was du eingegeben hast.',
+          list: err.details.warnings.map(function (w) { return w.message; }),
+          actions: actions
+        }).then(function (choice) {
+          if (choice === 'save') submit(true);
+          else if (choice === 'context') { App.$('#moreDetails').open = true; App.$('#tagChips').scrollIntoView({ behavior: 'smooth' }); }
+        });
+      } else if (err.code === 'VALIDATION') {
+        showErrors(err.details && err.details.errors ? err.details.errors : [{ field: '', message: err.message }]);
+      } else {
+        showErrors([{ field: '', message: err.message }]);
+      }
+    }).then(function () {
+      busy = false; btn.disabled = false; btn.textContent = 'Speichern';
+    });
+  }
+
+  /* ---------- Details ---------- */
+  function openDetail(m) {
+    detail = m;
+    var opts = App.state.boot.options;
+    var rows = [];
+    var r = function (label, value) { rows.push('<div class="row"><span class="grow label">' + label + '</span><span class="detail">' + value + '</span></div>'); };
+    r('Datum', App.esc(App.fmt.dateLong(m.measurement_date)));
+    r('Uhrzeit', m.measurement_time ? App.esc(m.measurement_time) + ' Uhr' : 'unbekannt');
+    r('ESH 2023 (Praxis)', m.esh ? App.esc(m.esh.label) : '–');
+    r('Puls', m.pulse !== null ? m.pulse + ' /min' : '–');
+    r('Pulsdruck', (m.systolic - m.diastolic) + ' mmHg');
+    r('Messart', { daily: 'Tägliche Messung', protocol: 'Messprotokoll', event: 'Ereignis' }[m.measurement_type] || App.esc(m.measurement_type));
+    r('Quelle', m.source === 'historical_import' ? 'Historischer Import' : 'App');
+    var flags = (m.flags || []).map(function (f) { return '<span class="pill warn">⚠︎ ' + App.esc(App.FLAG_LABELS[f] || f) + '</span>'; });
+    if (m.duplicate_of) flags.push('<span class="pill">Mögliches Duplikat</span>');
+    if (m.is_valid === false) flags.push('<span class="pill danger">Als Messfehler markiert</span>');
+    if (m.deleted_at) flags.push('<span class="pill danger">Gelöscht</span>');
+    var tags = m.context_tags.map(function (k) { return '<span class="pill">' + App.esc(App.labelFor('contextTags', k)) + '</span>'; });
+    var sy = m.symptoms.map(function (k) { return '<span class="pill">' + App.esc(App.labelFor('symptoms', k)) + '</span>'; });
+
+    App.$('#detailBody').innerHTML =
+      '<div class="detail-value"><div class="metric"><span class="value">' + m.systolic + '/' + m.diastolic + '</span><span class="unit">mmHg</span></div>' +
+      (flags.length ? '<div class="pills" style="justify-content:center">' + flags.join('') + '</div>' : '') +
+      '<p class="caption" style="margin-top:8px">Einzelmessung – keine Diagnose.</p></div>' +
+      '<div class="list">' + rows.join('') + '</div>' +
+      (tags.length || sy.length ? '<div class="group-label">Kontext &amp; Symptome</div><div class="card"><div class="pills">' + tags.concat(sy).join('') + '</div></div>' : '') +
+      (m.notes ? '<div class="group-label">Notiz</div><div class="card" style="white-space:pre-wrap">' + App.esc(m.notes) + '</div>' : '') +
+      '<p class="caption" style="margin:16px 4px 0">Erfasst ' + App.esc(fmtTs(m.created_at)) + (m.updated_at && m.updated_at !== m.created_at ? ' · geändert ' + App.esc(fmtTs(m.updated_at)) : '') + '</p>';
+
+    App.$('#detailEdit').hidden = !!m.deleted_at;
+    App.$('#detailDelete').textContent = m.deleted_at ? 'Wiederherstellen' : 'Messung löschen';
+    App.$('#detailDelete').classList.toggle('danger', !m.deleted_at);
+    var dlg = App.$('#detailSheet');
+    if (!dlg.open) dlg.showModal();
+  }
+
+  function fmtTs(iso) {
+    if (!iso) return '–';
+    var d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleString('de-DE', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function openDetailById(id) {
+    App.api('getMeasurement', { id: id }).then(openDetail).catch(App.showError);
+  }
+
+  function deleteMeasurement(m) {
+    return App.alert({
+      title: 'Messung löschen?',
+      message: m.systolic + '/' + m.diastolic + ' mmHg vom ' + App.fmt.date(m.measurement_date) + ' wird aus Ansichten und Analysen entfernt. Unter „Kürzlich gelöscht“ kannst du sie wiederherstellen.',
+      actions: [{ label: 'Löschen', value: true, destructive: true, strong: true }, { label: 'Abbrechen', value: false }]
+    }).then(function (ok) {
+      if (!ok) return;
+      return App.api('deleteMeasurement', { id: m.id }).then(function () {
+        App.$('#detailSheet').close();
+        App.dataChanged();
+        App.toast('Messung gelöscht', { label: 'Rückgängig', run: function () { restore(m.id); } });
+      }).catch(App.showError);
+    });
+  }
+
+  function restore(id) {
+    return App.api('restoreMeasurement', { id: id }).then(function (m) {
+      App.dataChanged();
+      App.toast('Wiederhergestellt · ' + m.systolic + '/' + m.diastolic + ' mmHg');
+      return m;
+    }).catch(App.showError);
+  }
+
+  window.TensioViews.sheets = {
+    openEntry: openEntry,
+    openDetail: openDetail,
+    openDetailById: openDetailById,
+    restore: restore,
+    init: function () {
+      var f = form();
+      f.addEventListener('submit', function (e) { e.preventDefault(); submit(false); });
+      App.$$('[data-close]').forEach(function (b) { b.addEventListener('click', function () { b.closest('dialog').close(); }); });
+      f.time_unknown.addEventListener('change', syncTimeUnknown);
+      f.notes.addEventListener('input', updateMoreCount);
+      // Nur Ziffern, Auto-Weiter von SYS nach DIA bei 3 Stellen
+      ['systolic', 'diastolic', 'pulse'].forEach(function (n) {
+        f[n].addEventListener('input', function () {
+          var clean = f[n].value.replace(/[^0-9]/g, '');
+          if (clean !== f[n].value) f[n].value = clean;
+          if (n === 'systolic' && clean.length === 3) f.diastolic.focus();
+        });
+      });
+      App.$('#detailEdit').addEventListener('click', function () {
+        var m = detail;
+        App.$('#detailSheet').close();
+        openEntry(m);
+      });
+      App.$('#detailDelete').addEventListener('click', function () {
+        if (!detail) return;
+        if (detail.deleted_at) restore(detail.id).then(function (m) { if (m) openDetail(m); });
+        else deleteMeasurement(detail);
+      });
+      App.$('#detailSheet').addEventListener('close', function () { detail = null; });
+    }
+  };
+})();
+</script>
