@@ -48,7 +48,7 @@
           body: JSON.stringify({ method: method, payload: payload || {}, key: key })
         }).then(function (r) { return r.text(); })
           .then(handle)
-          .catch(function () { reject({ code: 'NETWORK', message: 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen und erneut versuchen.' }); });
+          .catch(function () { reject({ code: 'NETWORK', message: 'Keine Verbindung zum Server. Prüfe die Internetverbindung. Falls sie besteht: In Apps Script muss die Bereitstellung "Wer hat Zugriff: Jeder" und die aktuelle Version haben.' }); });
       } else if (window.TensioPreviewApi) {
         setTimeout(function () { handle(window.TensioPreviewApi.call(method, body)); }, 120);
       } else {
