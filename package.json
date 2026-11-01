@@ -13,6 +13,7 @@
     "check": "npm test && npm run build",
     "demo-data": "node scripts/generate-demo-data.mjs",
     "preview": "npm run build && node scripts/serve-preview.mjs",
+    "clasp:create": "clasp create --type standalone --title Tensio --rootDir dist",
     "push": "npm run build && clasp push",
     "deploy": "npm run build && clasp push && clasp deploy"
   },

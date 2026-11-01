@@ -28,7 +28,7 @@ test('Build erzeugt clasp-kompatibles dist/ und lauffähigen Kern', () => {
     vm.runInContext(fs.readFileSync(path.join(dist, f), 'utf8'), ctx, { filename: f });
   }
   assert.equal(typeof ctx.Tensio.Api.createApi, 'function');
-  for (const fn of ['doGet', 'api', 'include', 'onOpen', 'setupSpreadsheet', 'normalizeImportedMeasurements', 'authorize_']) {
+  for (const fn of ['doGet', 'api', 'include', 'onOpen', 'createTensioSpreadsheet', 'setupSpreadsheet', 'normalizeImportedMeasurements', 'authorize_']) {
     assert.equal(typeof ctx[fn], 'function', fn + ' fehlt');
   }
   // Alle Includes in Index.html existieren

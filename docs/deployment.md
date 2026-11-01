@@ -7,34 +7,34 @@
 * clasp: `npm install -g @google/clasp`, dann `clasp login`
 * Apps Script API aktivieren: https://script.google.com/home/usersettings
 
-## 1. Spreadsheet und gebundenes Skript anlegen
-
-1. In Google Drive ein neues, **privates** Google Sheet anlegen (z. B. „Tensio Daten“). Nicht freigeben.
-2. Im Sheet: **Erweiterungen → Apps Script**. Das öffnet ein an das Sheet gebundenes Skriptprojekt.
-3. Im Skript-Editor unter **Projekteinstellungen** die **Skript-ID** kopieren.
-4. Optional: Zeitzone des Projekts auf die eigene Zeitzone setzen (Standard `Europe/Berlin` aus `appsscript.json`).
-
-## 2. Code übertragen
+## 1. Apps-Script-Projekt anlegen (einmalig)
 
 ```bash
 git clone https://github.com/Maxi10-create/Tensio.git
 cd Tensio
 npm ci
-cp .clasp.json.example .clasp.json   # scriptId eintragen
-npm test                              # Unit-Tests
-npm run push                          # build + clasp push (überschreibt das Skriptprojekt)
+npx clasp login          # Anmeldung mit deinem Google-Konto
+npm run clasp:create     # legt ein eigenständiges Apps-Script-Projekt „Tensio“ an, schreibt .clasp.json
+npm test
+npm run push             # Build + Upload nach Apps Script
 ```
 
-`.clasp.json` ist in `.gitignore` und wird nicht eingecheckt.
+`.clasp.json` (mit der Skript-ID) ist in `.gitignore` und wird nicht eingecheckt.
 
-## 3. Tabellenblätter einrichten
+## 2. Spreadsheet automatisch erstellen (einmalig)
 
-Sheet neu laden. Im Menü **Tensio → Tabellenblätter einrichten / prüfen** ausführen und die
-Berechtigungen bestätigen. Angelegt werden: Measurements, Patients, HealthEvents, WeightHistory,
-Protocols, Settings, AuditLog. Bestehende Daten bleiben unverändert.
+Im Apps-Script-Editor (`npx clasp open`) die Funktion **`createTensioSpreadsheet`** auswählen und
+„Ausführen“. Beim ersten Mal bestätigst du die Berechtigungen. Das Skript legt in deinem Google Drive
+ein privates Spreadsheet „Tensio Daten“ an, richtet alle Tabellenblätter ein und speichert seine ID.
+Die URL steht im Ausführungsprotokoll. Ein zweiter Lauf tut nichts.
 
-Zum Ausprobieren: **Tensio → Fiktive Demo-Daten einfügen** (nur in ein leeres Blatt). Vor der echten
-Nutzung mit **Tensio → Demo-Daten entfernen** wieder löschen.
+Zum Ausprobieren: Menü **Tensio → Fiktive Demo-Daten einfügen** (nur wenn das Blatt leer ist), vor der echten
+Nutzung wieder **Demo-Daten entfernen**.
+
+## 3. Prüfen
+
+Das Setup legt Measurements, Patients, HealthEvents, WeightHistory, Protocols, Settings und AuditLog an.
+Bei Bedarf lässt sich `setupSpreadsheet` (bzw. im Sheet-Menü **Tabellenblätter einrichten / prüfen**) erneut ausführen; bestehende Daten bleiben erhalten.
 
 ## 4. Web-App bereitstellen
 

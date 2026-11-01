@@ -10,10 +10,35 @@
 
 var DATE_ONLY_COLUMNS_ = ['measurement_date', 'event_date', 'date', 'start_date', 'end_date'];
 
+/**
+ * Liefert das Tensio-Spreadsheet. Reihenfolge:
+ *  1. Script-Property SPREADSHEET_ID (vom Setup gesetzt; funktioniert im eigenständigen Skript),
+ *  2. das gebundene Spreadsheet, falls das Skript an eines gebunden ist.
+ */
 function getSpreadsheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) throw new Error('Tensio muss als gebundenes Skript eines Spreadsheets laufen.');
-  return ss;
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (id) return SpreadsheetApp.openById(id);
+  var active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active) return active;
+  throw new Error('Kein Tensio-Spreadsheet gefunden. Bitte im Apps-Script-Editor einmal createTensioSpreadsheet() ausführen.');
+}
+
+/**
+ * EINMALIG im Apps-Script-Editor ausführen („Ausführen“ → createTensioSpreadsheet).
+ * Legt in deinem Google Drive ein privates Spreadsheet „Tensio Daten“ an, richtet alle
+ * Tabellenblätter ein und merkt sich die ID. Die URL steht im Ausführungsprotokoll.
+ */
+function createTensioSpreadsheet() {
+  var props = PropertiesService.getScriptProperties();
+  var existing = props.getProperty('SPREADSHEET_ID');
+  if (existing) {
+    Logger.log('Tensio-Daten existieren bereits: https://docs.google.com/spreadsheets/d/' + existing);
+    return;
+  }
+  var ss = SpreadsheetApp.create('Tensio Daten');
+  props.setProperty('SPREADSHEET_ID', ss.getId());
+  ensureSchema_(ss);
+  Logger.log('Tensio-Daten angelegt: ' + ss.getUrl());
 }
 
 /** @constructor */
@@ -131,7 +156,12 @@ SheetRepository_.prototype.update = function (name, rec) {
  */
 function setupSpreadsheet() {
   assertAuthorized_();
-  var ss = getSpreadsheet_();
+  var created = ensureSchema_(getSpreadsheet_());
+  safeAlert_('Tensio ist eingerichtet.' + (created.length ? '\nNeu angelegt: ' + created.join(', ') : '\nAlle Tabellenblätter vorhanden.'));
+}
+
+/** Legt fehlende Tabellenblätter/Spalten an (idempotent). Gibt die neu angelegten Blattnamen zurück. */
+function ensureSchema_(ss) {
   var created = [];
   Object.keys(Tensio.Schema.SHEETS).forEach(function (name) {
     var sh = ss.getSheetByName(name);
@@ -153,7 +183,7 @@ function setupSpreadsheet() {
   var runtime = createRuntime_(Session.getEffectiveUser().getEmail());
   runtime.api.call('bootstrap', {});
   SpreadsheetApp.flush();
-  safeAlert_('Tensio ist eingerichtet.' + (created.length ? '\nNeu angelegt: ' + created.join(', ') : '\nAlle Tabellenblätter vorhanden.'));
+  return created;
 }
 
 /**
