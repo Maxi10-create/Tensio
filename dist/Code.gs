@@ -66,8 +66,8 @@ function api(method, payloadJson) {
 }
 
 /** Baut die Laufzeitumgebung (Repository + Uhr + IDs) für eine Anfrage. */
-function createRuntime_(email) {
-  var repo = new SheetRepository_(getSpreadsheet_());
+function createRuntime_(email, ss) {
+  var repo = new SheetRepository_(ss || getSpreadsheet_());
   return {
     repo: repo,
     api: Tensio.Api.createApi({
