@@ -16,10 +16,11 @@ var DATE_ONLY_COLUMNS_ = ['measurement_date', 'event_date', 'date', 'start_date'
  *  2. das gebundene Spreadsheet, falls das Skript an eines gebunden ist.
  */
 function getSpreadsheet_() {
-  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (id) return SpreadsheetApp.openById(id);
+  // Bevorzugt das Sheet, an das das Skript gebunden ist (Erweiterungen → Apps Script).
   var active = SpreadsheetApp.getActiveSpreadsheet();
   if (active) return active;
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (id) return SpreadsheetApp.openById(id);
   throw new Error('Kein Tensio-Spreadsheet gefunden. Bitte im Apps-Script-Editor einmal createTensioSpreadsheet() ausführen.');
 }
 
