@@ -1,13 +1,12 @@
 <section class="view" id="view-profile" aria-labelledby="profTitle">
   <h1 class="large-title" id="profTitle">Profil</h1>
-  <p class="subtitle">Alle Angaben sind freiwillig.</p>
+  <p class="subtitle">Dein Profil gilt für dich. Alle Angaben sind freiwillig.</p>
 
   <form id="profileForm" novalidate>
     <div class="group-label">Basisdaten</div>
     <div class="list">
       <label class="row"><span class="grow label">Name</span><input name="name" type="text" maxlength="100" placeholder="optional" autocomplete="name"></label>
       <label class="row"><span class="grow label">Geburtsdatum</span><input name="birth_date" type="date"></label>
-      <label class="row"><span class="grow label">Geburtsjahr</span><input name="birth_year" type="text" inputmode="numeric" maxlength="4" placeholder="optional"></label>
       <label class="row"><span class="grow label">Geschlecht</span>
         <select name="sex"><option value="">keine Angabe</option><option value="female">weiblich</option><option value="male">männlich</option><option value="diverse">divers</option></select></label>
       <label class="row"><span class="grow label">Körpergröße (cm)</span><input name="height_cm" type="text" inputmode="numeric" maxlength="3" placeholder="optional"></label>
@@ -69,7 +68,6 @@
     var p = b.profile, s = b.settings, f = App.$('#profileForm');
     f.name.value = p.name || '';
     f.birth_date.value = p.birth_date || '';
-    f.birth_year.value = p.birth_year || '';
     f.sex.value = p.sex || '';
     f.height_cm.value = p.height_cm || '';
     f.hypertension_diagnosis.value = p.hypertension_diagnosis || '';
@@ -99,7 +97,7 @@
         var f = e.target;
         App.$('#profileError').hidden = true;
         App.api('saveProfile', {
-          name: f.name.value.trim(), birth_date: f.birth_date.value, birth_year: f.birth_year.value.trim(), sex: f.sex.value, height_cm: f.height_cm.value.trim(),
+          name: f.name.value.trim(), birth_date: f.birth_date.value, sex: f.sex.value, height_cm: f.height_cm.value.trim(),
           hypertension_diagnosis: f.hypertension_diagnosis.value, relevant_conditions: f.relevant_conditions.value
         }).then(function (p) {
           App.state.boot.profile = p;
