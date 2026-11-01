@@ -34,7 +34,7 @@
   --ok: #1d7f45;
   --ok-bg: #e3f5ea;
   --shadow: 0 1px 2px rgba(90, 60, 30, 0.05), 0 6px 20px rgba(90, 60, 30, 0.06);
-  --radius: 16px;
+  --radius: 22px;
   --radius-sm: 10px;
   --tap: 44px;
   --gutter: 16px;
@@ -87,11 +87,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .large-title { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin: 20px 0 2px; }
 .subtitle { color: var(--text-2); font-size: 15px; margin: 0 0 16px; }
-.section-title { font-size: 22px; font-weight: 700; margin: 28px 0 10px; letter-spacing: -0.01em; }
+.section-title { font-size: 22px; font-weight: 700; margin: 36px 0 12px; letter-spacing: -0.01em; }
 .group-label { font-size: 13px; text-transform: uppercase; letter-spacing: 0.02em; color: var(--text-2); margin: 24px 16px 6px; }
 .footnote { font-size: 13px; color: var(--text-2); }
 .caption { font-size: 12px; color: var(--text-3); }
-.grid { display: grid; gap: 12px; }
+.grid { display: grid; gap: 14px; }
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 900px) { .grid-dash { grid-template-columns: repeat(3, minmax(0, 1fr)); } .span-2 { grid-column: span 2; } }
 
@@ -131,25 +131,26 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- Karten & Listen ---------- */
 .card {
-  background: var(--card); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+  background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
+  border: 0.5px solid var(--separator);
 }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-.card-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-.card-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.card-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.card-title .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
 .card-meta { font-size: 13px; color: var(--text-3); }
 .metric { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.metric .value { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.metric .value.md { font-size: 30px; }
-.metric .unit { font-size: 15px; color: var(--text-2); font-weight: 500; }
+.metric .value { font-size: 52px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.metric .value.md { font-size: 32px; }
+.metric .unit { font-size: 15px; color: var(--text-3); font-weight: 500; }
 .metric-sub { color: var(--text-2); font-size: 14px; margin-top: 4px; }
 
-.list { background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.list { background: var(--card); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); border: 0.5px solid var(--separator); }
 .row {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: var(--tap);
-  padding: 11px 16px; border: 0; background: none; text-align: left; position: relative;
+  padding: 14px 20px; border: 0; background: none; text-align: left; position: relative;
 }
 .row + .row::before, .row + .row-wrap::before {
-  content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 0.5px solid var(--separator);
+  content: ""; position: absolute; top: 0; left: 20px; right: 20px; border-top: 0.5px solid var(--separator);
 }
 button.row { cursor: pointer; }
 button.row:active { background: var(--fill); }
@@ -157,13 +158,13 @@ button.row:active { background: var(--fill); }
 .row .label { font-size: 17px; }
 .row .detail { color: var(--text-2); font-size: 15px; }
 .row .chev { color: var(--text-3); flex: none; }
-.row-value { font-weight: 600; font-variant-numeric: tabular-nums; font-size: 19px; text-align: right; }
+.row-value { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 20px; letter-spacing: -0.01em; text-align: right; }
 .row-value small { font-weight: 400; color: var(--text-2); font-size: 13px; display: block; }
 .row select, .row input:not([type="checkbox"]) {
   border: 0; background: transparent; text-align: right; color: var(--text-2); min-height: 32px; max-width: 60%;
 }
 .row select:focus, .row input:focus { color: var(--text); }
-.month-head { font-size: 13px; font-weight: 600; color: var(--text-2); margin: 20px 16px 6px; text-transform: uppercase; letter-spacing: .02em; }
+.month-head { font-size: 13px; font-weight: 600; color: var(--text-2); margin: 28px 20px 8px; text-transform: uppercase; letter-spacing: .02em; }
 
 /* ---------- Badges ---------- */
 .pill {
