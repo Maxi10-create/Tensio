@@ -5,28 +5,28 @@
    ========================================================================== */
 :root {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
-  --bg: #f2f2f7;
+  --bg: #f4efe6;
   --bg-elevated: #ffffff;
   --card: #ffffff;
-  --fill: rgba(118, 118, 128, 0.12);
-  --fill-strong: rgba(118, 118, 128, 0.2);
-  --text: #1c1c1e;
-  --text-2: #5e5e64;
-  --text-3: #8a8a8f;
-  --separator: rgba(60, 60, 67, 0.16);
-  --accent: #4f4bd1;
+  --fill: rgba(107, 78, 52, 0.09);
+  --fill-strong: rgba(107, 78, 52, 0.17);
+  --text: #2a2118;
+  --text-2: #62564a;
+  --text-3: #75685b;
+  --separator: rgba(90, 65, 40, 0.16);
+  --accent: #7a4a24;
   --accent-contrast: #ffffff;
   --sys: #2f6fdf;
   --dia: #0e9488;
   --pulse: #8e5cd6;
-  --ref: #8a8a8f;
+  --ref: #75685b;
   --warn: #a35a00;
   --warn-bg: #fff1dc;
   --danger: #c4111f;
   --danger-bg: #fde8ea;
   --ok: #1d7f45;
   --ok-bg: #e3f5ea;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 20px rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 2px rgba(90, 60, 30, 0.05), 0 6px 20px rgba(90, 60, 30, 0.06);
   --radius: 16px;
   --radius-sm: 10px;
   --tap: 44px;
@@ -37,21 +37,21 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #000000; --bg-elevated: #1c1c1e; --card: #1c1c1e;
+    --bg: #17120d; --bg-elevated: #241d16; --card: #241d16;
     --fill: rgba(118, 118, 128, 0.24); --fill-strong: rgba(118, 118, 128, 0.36);
-    --text: #f5f5f7; --text-2: #b4b4ba; --text-3: #8d8d93; --separator: rgba(84, 84, 88, 0.6);
-    --accent: #8f8bff; --accent-contrast: #0b0b1a;
-    --sys: #78a4ff; --dia: #3fd0c2; --pulse: #c3a0ff; --ref: #8d8d93;
+    --text: #f4ece0; --text-2: #c3b6a5; --text-3: #a09484; --separator: rgba(84, 84, 88, 0.6);
+    --accent: #d9a56b; --accent-contrast: #1c1208;
+    --sys: #78a4ff; --dia: #3fd0c2; --pulse: #c3a0ff; --ref: #a09484;
     --warn: #ffb44d; --warn-bg: #3a2a10; --danger: #ff6b6b; --danger-bg: #3d1517; --ok: #4ade80; --ok-bg: #12301f;
     --shadow: none; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #000000; --bg-elevated: #1c1c1e; --card: #1c1c1e;
+  --bg: #17120d; --bg-elevated: #241d16; --card: #241d16;
   --fill: rgba(118, 118, 128, 0.24); --fill-strong: rgba(118, 118, 128, 0.36);
-  --text: #f5f5f7; --text-2: #b4b4ba; --text-3: #8d8d93; --separator: rgba(84, 84, 88, 0.6);
-  --accent: #8f8bff; --accent-contrast: #0b0b1a;
-  --sys: #78a4ff; --dia: #3fd0c2; --pulse: #c3a0ff; --ref: #8d8d93;
+  --text: #f4ece0; --text-2: #c3b6a5; --text-3: #a09484; --separator: rgba(84, 84, 88, 0.6);
+  --accent: #d9a56b; --accent-contrast: #1c1208;
+  --sys: #78a4ff; --dia: #3fd0c2; --pulse: #c3a0ff; --ref: #a09484;
   --warn: #ffb44d; --warn-bg: #3a2a10; --danger: #ff6b6b; --danger-bg: #3d1517; --ok: #4ade80; --ok-bg: #12301f;
   --shadow: none; color-scheme: dark;
 }
@@ -92,18 +92,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
   display: flex; justify-content: space-around;
-  padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg-elevated) 90%, transparent);
   -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
   border-top: 0.5px solid var(--separator);
 }
 .tab {
   flex: 1; min-height: var(--tap); border: 0; background: none; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  font-size: 11px; font-weight: 500; color: var(--text-3);
+  font-size: 12px; font-weight: 500; color: var(--text-3);
+  border-radius: 14px; transition: color .2s var(--ease);
 }
 .tab svg { width: 26px; height: 26px; }
-.tab[aria-current="page"] { color: var(--accent); }
+.tab[aria-current="page"] { color: var(--accent); font-weight: 700; }
+.tab[aria-current="page"] svg { stroke-width: 2.2; }
 .brand { display: none; }
 .brand-logo { height: 34px; width: auto; display: block; }
 .brand-top { padding: 14px 0 0; }
@@ -188,7 +190,7 @@ button.row:active { background: var(--fill); }
 .tab-add {
   flex: 0 0 auto; width: 58px; height: 58px; margin-top: -24px; border: 0; border-radius: 50%; cursor: pointer;
   background: var(--accent); color: var(--accent-contrast); display: grid; place-items: center;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, .18);
+  box-shadow: 0 6px 16px rgba(122, 74, 36, .35);
 }
 .tab-add svg { width: 26px; height: 26px; }
 .tab-add-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
