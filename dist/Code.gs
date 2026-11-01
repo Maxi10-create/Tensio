@@ -8,6 +8,30 @@
  *   Core.js      gebündelte, plattformunabhängige Logik (global `Tensio`, aus src/core + src/analytics)
  */
 
+/**
+ * JSON-API für das statische Frontend (GitHub Pages).
+ * POST (Body als text/plain, damit kein CORS-Preflight nötig ist): {"method":"...","payload":{...},"key":"..."}
+ * Ist die Script-Property ACCESS_KEY gesetzt, muss "key" übereinstimmen.
+ */
+function doPost(e) {
+  var req = {};
+  try {
+    req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+  } catch (err) {
+    return jsonOut_({ ok: false, error: { code: 'VALIDATION', message: 'Ungültige Anfrage.' } });
+  }
+  var needed = PropertiesService.getScriptProperties().getProperty('ACCESS_KEY') || '';
+  if (needed && String(req.key || '') !== needed) {
+    return jsonOut_({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Zugangsschlüssel fehlt oder ist falsch.' } });
+  }
+  return ContentService.createTextOutput(api(String(req.method || ''), JSON.stringify(req.payload || {})))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonOut_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
 /** Liefert die Web-App aus. */
 function doGet() {
   var auth = authorize_();

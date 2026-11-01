@@ -12,7 +12,7 @@
     (function () {
       try {
         var t = localStorage.getItem('tensio.theme');
-        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.setAttribute('data-theme', t === 'dark' || t === 'auto' ? t : 'light');
       } catch (e) { /* Speicher evtl. blockiert */ }
     })();
   </script>

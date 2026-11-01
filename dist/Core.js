@@ -782,7 +782,7 @@ var Tensio = (() => {
         preferred_measurement_time: "",
         preferred_chart_period: "30d",
         reference_guideline: Refs.DEFAULT_GUIDELINE,
-        theme: "auto"
+        theme: "light"
       };
       function isValidTimeZone(tz) {
         if (typeof tz !== "string" || !tz) return false;

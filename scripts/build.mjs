@@ -80,6 +80,18 @@ html = html.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n  <meta n
 if (/<\?/.test(html)) throw new Error('Unaufgelöste Template-Tags in der Vorschau');
 fs.writeFileSync(path.join(preview, 'index.html'), html);
 
+// ---------- GitHub Pages: statische Seite, Backend per fetch ----------
+{
+  const pages = path.join(root, 'dist-pages');
+  fs.rmSync(pages, { recursive: true, force: true });
+  fs.mkdirSync(pages, { recursive: true });
+  let page = fs.readFileSync(path.join(dist, 'Index.html'), 'utf8');
+  page = page.replace('</head>', '  <script src="config.js"></script>\n</head>');
+  fs.writeFileSync(path.join(pages, 'index.html'), page);
+  fs.copyFileSync(path.join(root, 'pages/config.js'), path.join(pages, 'config.js'));
+  fs.writeFileSync(path.join(pages, '.nojekyll'), '');
+}
+
 const files = fs.readdirSync(dist);
 console.log(`dist/: ${files.length} Dateien (${files.join(', ')})`);
 console.log(`dist-preview/index.html: ${(html.length / 1024).toFixed(0)} KB`);

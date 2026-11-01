@@ -13,6 +13,15 @@
   };
 
   /* ---------- API ---------- */
+  // Zugangsschlüssel aus dem Link (#key=...) einmalig speichern und aus der Adresszeile entfernen.
+  try {
+    var km = /[#&]key=([^&]+)/.exec(location.hash || '');
+    if (km) {
+      localStorage.setItem('tensio.key', decodeURIComponent(km[1]));
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  } catch (e) { /* ignorieren */ }
+
   App.api = function (method, payload) {
     return new Promise(function (resolve, reject) {
       var body = JSON.stringify(payload || {});
@@ -24,8 +33,22 @@
       if (window.google && google.script && google.script.run) {
         google.script.run
           .withSuccessHandler(handle)
-          .withFailureHandler(function () { reject({ code: 'NETWORK', message: 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen und erneut versuchen.' }); })
+          .withFailureHandler(function (err) {
+            var m = err && err.message ? String(err.message).replace(/^Exception:\s*/, '') : '';
+            reject({ code: 'SERVER', message: m ? 'Serverfehler: ' + m : 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen und erneut versuchen.' });
+          })
           .api(method, body);
+      } else if (window.TENSIO_API) {
+        var key = '';
+        try { key = localStorage.getItem('tensio.key') || ''; } catch (e) { /* ignorieren */ }
+        fetch(window.TENSIO_API, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ method: method, payload: payload || {}, key: key })
+        }).then(function (r) { return r.text(); })
+          .then(handle)
+          .catch(function () { reject({ code: 'NETWORK', message: 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen und erneut versuchen.' }); });
       } else if (window.TensioPreviewApi) {
         setTimeout(function () { handle(window.TensioPreviewApi.call(method, body)); }, 120);
       } else {
@@ -144,8 +167,8 @@
   /* ---------- Theme ---------- */
   App.applyTheme = function (theme) {
     var root = document.documentElement;
-    if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
-    else root.removeAttribute('data-theme');
+    if (theme === 'dark' || theme === 'auto') root.setAttribute('data-theme', theme);
+    else root.setAttribute('data-theme', 'light');
     try { localStorage.setItem('tensio.theme', theme || 'auto'); } catch (e) { /* ignorieren */ }
     App.emit('theme');
   };
