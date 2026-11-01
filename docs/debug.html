@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tensio Verbindungstest</title>
+<style>body{font:16px/1.5 -apple-system,sans-serif;margin:20px;max-width:720px;background:#f4efe6;color:#2a2118}
+h1{font-size:22px}pre{background:#fff;padding:12px;border-radius:12px;white-space:pre-wrap;word-break:break-all;font-size:13px}
+.ok{color:#1d7f45;font-weight:700}.bad{color:#c4111f;font-weight:700}</style>
+<script src="config.js"></script></head>
+<body><h1>Tensio Verbindungstest</h1>
+<p>Dieser Test prüft, welche Art von Anfrage dein Browser zum Backend durchlässt. Mach einen Screenshot der ganzen Seite.</p>
+<pre id="env"></pre><div id="out"></div>
+<script>
+(function () {
+  var out = document.getElementById('out');
+  document.getElementById('env').textContent = 'Browser: ' + navigator.userAgent + '\nAdresse: ' + (window.TENSIO_API || 'FEHLT');
+  function row(name, ok, detail) {
+    var d = document.createElement('div');
+    d.innerHTML = '<p><span class="' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'OK' : 'FEHLER') + '</span> ' + name + '</p><pre></pre>';
+    d.querySelector('pre').textContent = detail; out.appendChild(d);
+  }
+  var base = window.TENSIO_API;
+  if (!base) return row('config.js', false, 'TENSIO_API ist leer.');
+  var q = '?method=bootstrap&payload=%7B%7D&key=';
+  fetch(base + q, { cache: 'no-store' }).then(function (r) {
+    return r.text().then(function (t) { row('1. fetch GET', r.ok, 'Status ' + r.status + ', Typ ' + r.headers.get('content-type') + '\n' + t.slice(0, 160)); });
+  }).catch(function (e) { row('1. fetch GET', false, e && e.name + ': ' + e.message); });
+  fetch(base, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ method: 'bootstrap', payload: {}, key: '' }) }).then(function (r) {
+    return r.text().then(function (t) { row('2. fetch POST', r.ok, 'Status ' + r.status + '\n' + t.slice(0, 160)); });
+  }).catch(function (e) { row('2. fetch POST', false, e && e.name + ': ' + e.message); });
+  window.__dbg = function (o) { row('3. Skript-Einbindung (JSONP)', !!(o && o.ok), JSON.stringify(o).slice(0, 160)); };
+  var s = document.createElement('script');
+  s.src = base + q + '&callback=__dbg&_=' + Date.now();
+  s.onerror = function () { row('3. Skript-Einbindung (JSONP)', false, 'Skript konnte nicht geladen werden.'); };
+  document.head.appendChild(s);
+  try { localStorage.setItem('t', '1'); row('4. localStorage', true, 'verfügbar'); } catch (e) { row('4. localStorage', false, String(e)); }
+})();
+</script></body></html>
