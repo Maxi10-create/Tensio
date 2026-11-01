@@ -220,7 +220,14 @@
     });
   }
 
+  function greet() {
+    var p = App.state.boot && App.state.boot.profile;
+    var name = p && p.name ? String(p.name).split(' ')[0] : '';
+    App.$('#dashTitle').textContent = name ? 'Hallo, ' + name : 'Übersicht';
+  }
+
   function load() {
+    greet();
     var p = period || App.state.boot.settings.preferred_chart_period;
     return App.api('getDashboard', { period: p }).then(function (d) { data = d; period = d.period; render(); }).catch(function (err) {
       App.$('#dashBody').innerHTML = '<div class="card empty"><h3>Übersicht nicht verfügbar</h3><p>' + App.esc(err.message) + '</p><button class="btn" type="button" onclick="App.views.dashboard.show()">Erneut versuchen</button></div>';
