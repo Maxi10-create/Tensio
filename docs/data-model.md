@@ -77,4 +77,7 @@ Nur `patient_id` ist erforderlich. Beim ersten Start wird `patient-1` angelegt.
 2. **Tensio → Importierte Messungen vervollständigen** ausführen. Das vergibt IDs und setzt `source = historical_import`,
    `measurement_type = daily`, `is_valid = TRUE` und die Zeitstempel. Uhrzeiten werden nicht ergänzt.
 
+Alternativ bringt `tools/import_handwritten.py` abgetippte Blätter (CSV/TSV) direkt in dieses Format, mit
+Prüfbericht für unplausible Werte und mögliche Duplikate (siehe `tools/README.md`).
+
 `samples/demo-measurements.csv` zeigt das Format mit fiktiven Werten.
