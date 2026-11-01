@@ -24,7 +24,10 @@
       if (window.google && google.script && google.script.run) {
         google.script.run
           .withSuccessHandler(handle)
-          .withFailureHandler(function () { reject({ code: 'NETWORK', message: 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen und erneut versuchen.' }); })
+          .withFailureHandler(function (err) {
+            var m = err && err.message ? String(err.message).replace(/^Exception:\s*/, '') : '';
+            reject({ code: 'SERVER', message: m ? 'Serverfehler: ' + m : 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen und erneut versuchen.' });
+          })
           .api(method, body);
       } else if (window.TensioPreviewApi) {
         setTimeout(function () { handle(window.TensioPreviewApi.call(method, body)); }, 120);
@@ -144,8 +147,8 @@
   /* ---------- Theme ---------- */
   App.applyTheme = function (theme) {
     var root = document.documentElement;
-    if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
-    else root.removeAttribute('data-theme');
+    if (theme === 'dark' || theme === 'auto') root.setAttribute('data-theme', theme);
+    else root.setAttribute('data-theme', 'light');
     try { localStorage.setItem('tensio.theme', theme || 'auto'); } catch (e) { /* ignorieren */ }
     App.emit('theme');
   };
