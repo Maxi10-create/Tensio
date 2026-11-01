@@ -38,6 +38,32 @@ function include(name) {
  * @param {string} payloadJson
  * @return {string} JSON { ok, data | error }
  */
+/**
+ * Kurzer Server-Cache für Leseaufrufe (Übersicht, Analyse, Liste, Bootstrap).
+ * Jeder Schreibvorgang erhöht die Datenversion; alte Einträge werden dann nicht mehr
+ * gefunden. Zusätzlich läuft jeder Eintrag nach 5 Minuten ab, damit Datumsangaben
+ * wie „heute“ nicht veralten. Größere Antworten als ~95 KB werden nicht gecacht.
+ */
+var READ_CACHE_METHODS_ = ['bootstrap', 'getDashboard', 'getAnalytics', 'listMeasurements'];
+var READ_CACHE_TTL_S_ = 300;
+
+function readCached_(method, payloadText, compute) {
+  if (READ_CACHE_METHODS_.indexOf(method) < 0) return compute();
+  var cache = CacheService.getScriptCache();
+  var version = cache.get('dataVersion') || '0';
+  var key = 'v' + version + ':' + method + ':' + payloadText;
+  if (key.length > 240) return compute();
+  var hit = cache.get(key);
+  if (hit) return hit;
+  var out = compute();
+  if (out.length < 95000) cache.put(key, out, READ_CACHE_TTL_S_);
+  return out;
+}
+
+function bumpDataVersion_() {
+  CacheService.getScriptCache().put('dataVersion', String(Date.now()), 21600);
+}
+
 function api(method, payloadJson) {
   var auth = authorize_();
   if (!auth.ok) {
@@ -51,7 +77,9 @@ function api(method, payloadJson) {
   }
   var runtime = createRuntime_(auth.email);
   if (!runtime.api.isWrite(method)) {
-    return JSON.stringify(runtime.api.call(method, payload));
+    return readCached_(method, payloadJson || '{}', function () {
+      return JSON.stringify(runtime.api.call(method, payload));
+    });
   }
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(15000)) {
@@ -61,6 +89,7 @@ function api(method, payloadJson) {
     return JSON.stringify(runtime.api.call(method, payload));
   } finally {
     SpreadsheetApp.flush();
+    bumpDataVersion_();
     lock.releaseLock();
   }
 }
