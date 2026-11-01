@@ -98,11 +98,18 @@ function buildAnalytics(measurements, ctx) {
   const from = periodStart(period, today, days.length ? days[0].date : null);
   const inPeriod = A.filterDays(days, from, today);
   const window = A.summarizeDays(inPeriod, from, today);
+  const eshPoints = A.analyzable(measurements)
+    .filter(m => m.measurement_date >= from && m.measurement_date <= today)
+    .map(m => ({ sys: m.systolic, dia: m.diastolic, cat: (Refs.categorize('esh-2023', 'office', m.systolic, m.diastolic) || {}).key }));
+  const eshCounts = {};
+  eshPoints.forEach(p => { eshCounts[p.cat] = (eshCounts[p.cat] || 0) + 1; });
   return {
     period: period,
     from: from,
     to: today,
     basis: 'daily_means',
+    eshPoints: eshPoints,
+    eshCounts: eshCounts,
     daysWithData: window.daysWithData,
     windowDays: window.windowDays,
     coverage: window.coverage,

@@ -53,7 +53,8 @@ function createApi(env) {
           symptoms: Schema.SYMPTOMS,
           periods: Object.keys(Schema.CHART_PERIODS),
           guidelines: Refs.listGuidelines(),
-          referencesVersion: Refs.REFERENCES_VERSION
+          referencesVersion: Refs.REFERENCES_VERSION,
+          eshCategories: Refs.GUIDELINES['esh-2023'].methods.office.categories
         }
       };
     },

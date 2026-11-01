@@ -105,6 +105,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tab svg { width: 26px; height: 26px; }
 .tab[aria-current="page"] { color: var(--accent); }
 .brand { display: none; }
+.brand-logo { height: 34px; width: auto; display: block; }
+.brand-top { padding: 14px 0 0; }
+@media (min-width: 900px) { .brand-top { display: none; } .brand .brand-logo { height: 38px; } }
 @media (min-width: 900px) {
   .tabbar {
     top: 0; right: auto; width: 232px; flex-direction: column; justify-content: flex-start; gap: 2px;
