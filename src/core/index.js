@@ -12,6 +12,7 @@ module.exports = {
   Measurements: require('./measurements'),
   Settings: require('./settings'),
   Patients: require('./patients'),
+  Importer: require('./importer'),
   Dashboard: require('./dashboard'),
   Exporter: require('./exporter'),
   Api: require('./api'),

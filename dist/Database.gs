@@ -16,10 +16,11 @@ var DATE_ONLY_COLUMNS_ = ['measurement_date', 'event_date', 'date', 'start_date'
  *  2. das gebundene Spreadsheet, falls das Skript an eines gebunden ist.
  */
 function getSpreadsheet_() {
-  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (id) return SpreadsheetApp.openById(id);
+  // Bevorzugt das Sheet, an das das Skript gebunden ist (Erweiterungen → Apps Script).
   var active = SpreadsheetApp.getActiveSpreadsheet();
   if (active) return active;
+  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  if (id) return SpreadsheetApp.openById(id);
   throw new Error('Kein Tensio-Spreadsheet gefunden. Bitte im Apps-Script-Editor einmal createTensioSpreadsheet() ausführen.');
 }
 
@@ -268,4 +269,76 @@ function removeDemoData() {
 
 function safeAlert_(msg) {
   try { SpreadsheetApp.getUi().alert(msg); } catch (e) { console.log(msg); }
+}
+
+/**
+ * Legt das Blatt „Import“ an (Menü „Import-Vorlage anlegen“). Dort trägst du
+ * handschriftlich erfasste Messungen ein; die Spalte „Status“ füllt das Skript.
+ */
+function createImportTemplate() {
+  assertAuthorized_();
+  var ss = getSpreadsheet_();
+  var sh = ss.getSheetByName('Import') || ss.insertSheet('Import');
+  var headers = Tensio.Importer.IMPORT_HEADERS;
+  if (sh.getLastRow() === 0) {
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, sh.getMaxRows(), 2).setNumberFormat('@');
+    sh.getRange(1, 1, 1, headers.length).setBackground('#e8e8ed');
+    sh.setColumnWidth(7, 260);
+  }
+  safeAlert_('Blatt „Import“ ist bereit.\nTrage ab Zeile 2 deine Messungen ein (Datum im Format TT.MM.JJJJ, Uhrzeit HH:MM oder leer, Puls oder leer).\nDann im Menü „Tensio → Handschriftliche Daten übernehmen“ ausführen.');
+}
+
+/**
+ * Übernimmt alle Zeilen aus dem Blatt „Import“ als Messungen (source „import“).
+ * Jede Zeile wird wie eine App-Eingabe geprüft. Zeilen mit Status „übernommen“
+ * werden nicht noch einmal übernommen, fehlerhafte Zeilen bekommen eine Meldung.
+ */
+function importHandwrittenMeasurements() {
+  assertAuthorized_();
+  var ss = getSpreadsheet_();
+  var sh = ss.getSheetByName('Import');
+  if (!sh) {
+    safeAlert_('Es gibt noch kein Blatt „Import“. Bitte zuerst „Import-Vorlage anlegen“ ausführen.');
+    return;
+  }
+  var last = sh.getLastRow();
+  if (last < 2) {
+    safeAlert_('Im Blatt „Import“ stehen noch keine Zeilen.');
+    return;
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var width = Tensio.Importer.IMPORT_HEADERS.length;
+    var values = sh.getRange(2, 1, last - 1, width).getValues();
+    var tz = ss.getSpreadsheetTimeZone();
+    var runtime = createRuntime_(Session.getEffectiveUser().getEmail());
+    var ok = 0, failed = 0, skipped = 0;
+    var today = Utilities.formatDate(new Date(), tz, 'dd.MM.yyyy');
+    var statuses = values.map(function (row) {
+      var status = String(row[6] || '');
+      if (status.indexOf('übernommen') === 0) { skipped++; return [status]; }
+      if (row.slice(0, 5).every(function (c) { return String(c).trim() === ''; })) return [''];
+      var date = row[0] instanceof Date ? Utilities.formatDate(row[0], tz, 'yyyy-MM-dd') : row[0];
+      var time = row[1] instanceof Date ? Utilities.formatDate(row[1], tz, 'HH:mm') : row[1];
+      var parsed = Tensio.Importer.parseImportRow({ date: date, time: time, systolic: row[2], diastolic: row[3], pulse: row[4], notes: row[5] });
+      if (!parsed.ok) { failed++; return ['Fehler: ' + parsed.error]; }
+      var res = runtime.api.call('createMeasurement', parsed.input);
+      if (res.ok) { ok++; return ['übernommen ' + today]; }
+      failed++;
+      var msg = (res.error && res.error.message) || 'Unbekannter Fehler';
+      if (res.error && res.error.warnings && res.error.warnings.length) {
+        msg = 'Bitte prüfen: ' + res.error.warnings.map(function (w) { return w.message; }).join(' ');
+      }
+      return ['Fehler: ' + msg];
+    });
+    sh.getRange(2, 7, statuses.length, 1).setValues(statuses);
+    SpreadsheetApp.flush();
+    safeAlert_('Übernommen: ' + ok + '\nNicht übernommen: ' + failed + '\nBereits früher übernommen: ' + skipped +
+      '\n\nDie Spalte „Status“ zeigt je Zeile, was passiert ist. Fehlerhafte Zeilen korrigieren und erneut ausführen.');
+  } finally {
+    lock.releaseLock();
+  }
 }
