@@ -15,7 +15,7 @@ function ensureDefaultPatient(repo, now) {
   if (rows.length) return rows[0].patient_id;
   const ts = new Date(now()).toISOString();
   repo.insert('Patients', {
-    patient_id: DEFAULT_PATIENT_ID, birth_year: null, sex: '', height_cm: null,
+    patient_id: DEFAULT_PATIENT_ID, name: '', birth_date: '', birth_year: null, sex: '', height_cm: null,
     hypertension_diagnosis: '', relevant_conditions: '', created_at: ts, updated_at: ts
   });
   return DEFAULT_PATIENT_ID;
@@ -30,6 +30,8 @@ function createPatientService(deps) {
     const p = find() || { patient_id: deps.patientId };
     return {
       patient_id: p.patient_id,
+      name: p.name || '',
+      birth_date: p.birth_date || '',
       birth_year: p.birth_year === undefined ? null : p.birth_year,
       sex: p.sex || '',
       height_cm: p.height_cm === undefined ? null : p.height_cm,
@@ -44,7 +46,22 @@ function createPatientService(deps) {
     const year = new Date(deps.now()).getUTCFullYear();
     const next = Object.assign({}, find() || { patient_id: deps.patientId, created_at: new Date(deps.now()).toISOString() });
 
-    if (p.birth_year !== undefined) {
+    if (p.name !== undefined) {
+      const s = String(p.name || '').trim();
+      if (s.length > 100) errors.push({ field: 'name', message: 'Maximal 100 Zeichen.' });
+      else next.name = s;
+    }
+    if (p.birth_date !== undefined) {
+      const s = String(p.birth_date || '').trim();
+      const today = new Date(deps.now()).toISOString().slice(0, 10);
+      if (s === '') next.birth_date = '';
+      else if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || s < '1900-01-01' || s > today) errors.push({ field: 'birth_date', message: 'Geburtsdatum als gültiges Datum zwischen 1900 und heute angeben.' });
+      else {
+        next.birth_date = s;
+        next.birth_year = Number(s.slice(0, 4));
+      }
+    }
+    if (p.birth_year !== undefined && p.birth_date === undefined) {
       const v = Validation.toNumber(p.birth_year);
       if (v === null) next.birth_year = null;
       else if (isNaN(v) || Math.round(v) !== v || v < 1900 || v > year) errors.push({ field: 'birth_year', message: 'Geburtsjahr zwischen 1900 und ' + year + ' angeben.' });

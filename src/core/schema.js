@@ -38,6 +38,8 @@ const SHEETS = {
     key: 'patient_id',
     columns: {
       patient_id: 'string',
+      name: 'string',
+      birth_date: 'string',
       birth_year: 'number',
       sex: 'string',
       height_cm: 'number',

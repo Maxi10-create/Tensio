@@ -38,6 +38,8 @@ var Tensio = (() => {
           key: "patient_id",
           columns: {
             patient_id: "string",
+            name: "string",
+            birth_date: "string",
             birth_year: "number",
             sex: "string",
             height_cm: "number",
@@ -857,6 +859,8 @@ var Tensio = (() => {
         const ts = new Date(now()).toISOString();
         repo.insert("Patients", {
           patient_id: DEFAULT_PATIENT_ID,
+          name: "",
+          birth_date: "",
           birth_year: null,
           sex: "",
           height_cm: null,
@@ -875,6 +879,8 @@ var Tensio = (() => {
           const p = find() || { patient_id: deps.patientId };
           return {
             patient_id: p.patient_id,
+            name: p.name || "",
+            birth_date: p.birth_date || "",
             birth_year: p.birth_year === void 0 ? null : p.birth_year,
             sex: p.sex || "",
             height_cm: p.height_cm === void 0 ? null : p.height_cm,
@@ -887,7 +893,22 @@ var Tensio = (() => {
           const errors = [];
           const year = new Date(deps.now()).getUTCFullYear();
           const next = Object.assign({}, find() || { patient_id: deps.patientId, created_at: new Date(deps.now()).toISOString() });
-          if (p.birth_year !== void 0) {
+          if (p.name !== void 0) {
+            const s = String(p.name || "").trim();
+            if (s.length > 100) errors.push({ field: "name", message: "Maximal 100 Zeichen." });
+            else next.name = s;
+          }
+          if (p.birth_date !== void 0) {
+            const s = String(p.birth_date || "").trim();
+            const today = new Date(deps.now()).toISOString().slice(0, 10);
+            if (s === "") next.birth_date = "";
+            else if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || s < "1900-01-01" || s > today) errors.push({ field: "birth_date", message: "Geburtsdatum als g\xFCltiges Datum zwischen 1900 und heute angeben." });
+            else {
+              next.birth_date = s;
+              next.birth_year = Number(s.slice(0, 4));
+            }
+          }
+          if (p.birth_year !== void 0 && p.birth_date === void 0) {
             const v = Validation.toNumber(p.birth_year);
             if (v === null) next.birth_year = null;
             else if (isNaN(v) || Math.round(v) !== v || v < 1900 || v > year) errors.push({ field: "birth_year", message: "Geburtsjahr zwischen 1900 und " + year + " angeben." });
