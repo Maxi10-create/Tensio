@@ -7,4 +7,3 @@ dist-preview/
 # Niemals echte Gesundheitsdaten einchecken
 data/
 *.real.csv
-dist-pages/

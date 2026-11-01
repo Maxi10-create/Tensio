@@ -82,8 +82,9 @@ fs.writeFileSync(path.join(preview, 'index.html'), html);
 
 // ---------- GitHub Pages: statische Seite, Backend per fetch ----------
 {
-  const pages = path.join(root, 'dist-pages');
-  fs.rmSync(pages, { recursive: true, force: true });
+  // Ausgabe nach docs/ (GitHub Pages: Branch main, Ordner /docs). Dort liegen auch die
+  // Markdown-Dokumente, deshalb werden nur diese drei Dateien geschrieben, nichts gelöscht.
+  const pages = path.join(root, 'docs');
   fs.mkdirSync(pages, { recursive: true });
   let page = fs.readFileSync(path.join(dist, 'Index.html'), 'utf8');
   page = page.replace('</head>', '  <script src="config.js"></script>\n</head>');
