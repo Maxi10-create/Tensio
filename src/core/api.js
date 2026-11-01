@@ -44,7 +44,7 @@ function createApi(env) {
       return {
         version: APP_VERSION,
         schemaVersion: Schema.SCHEMA_VERSION,
-        user: env.user ? { email: env.user.email } : null,
+        user: null, // E-Mail-Adresse wird nicht an die Oberfläche ausgeliefert
         today: ctx.today,
         settings: ctx.s,
         profile: ctx.patients.get(),
