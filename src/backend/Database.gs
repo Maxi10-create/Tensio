@@ -181,7 +181,7 @@ function ensureSchema_(ss) {
     });
   });
   // Patient + Einstellungen anlegen, falls leer
-  var runtime = createRuntime_(Session.getEffectiveUser().getEmail());
+  var runtime = createRuntime_(Session.getEffectiveUser().getEmail(), ss);
   runtime.api.call('bootstrap', {});
   SpreadsheetApp.flush();
   return created;
