@@ -265,7 +265,7 @@ details.more[open] > summary { border-radius: var(--radius) var(--radius) 0 0; }
 details.more .more-body { background: var(--card); border-radius: 0 0 var(--radius) var(--radius); padding: 4px 16px 16px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
-  min-height: 36px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--separator); background: var(--bg);
+  min-height: var(--tap); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--separator); background: var(--bg);
   cursor: pointer; font-size: 15px;
 }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); border-color: transparent; }
