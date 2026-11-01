@@ -7,9 +7,13 @@
  *  2. Serverseitige Prüfung bei JEDEM Aufruf: Die E-Mail des aktiven Nutzers muss in
  *     der Script-Property ALLOWED_EMAILS (kommagetrennt) stehen. Ist die Property
  *     nicht gesetzt, ist nur der Eigentümer des Skripts zugelassen.
+ *  Offener Modus (nur auf ausdrücklichen Wunsch): ALLOWED_EMAILS = *  -> kein E-Mail-Check;
+ *  zusätzlich im Deployment "Wer hat Zugriff" = "Jeder" wählen.
  *  Fail-closed: Ist keine E-Mail ermittelbar, wird der Zugriff verweigert.
  */
 function authorize_() {
+  // Bewusst offener Modus: ALLOWED_EMAILS = * -> jeder mit dem Link hat vollen Zugriff.
+  if (allowedEmails_().indexOf('*') >= 0) return { ok: true, email: '' };
   var email = '';
   try {
     email = (Session.getActiveUser().getEmail() || '').toLowerCase();
