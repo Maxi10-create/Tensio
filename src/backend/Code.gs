@@ -102,6 +102,8 @@ function onOpen() {
     .createMenu('Tensio')
     .addItem('Tabellenblätter einrichten / prüfen', 'setupSpreadsheet')
     .addItem('Importierte Messungen vervollständigen', 'normalizeImportedMeasurements')
+    .addItem('Import-Vorlage anlegen', 'createImportTemplate')
+    .addItem('Handschriftliche Daten übernehmen', 'importHandwrittenMeasurements')
     .addSeparator()
     .addItem('Fiktive Demo-Daten einfügen', 'insertDemoData')
     .addItem('Demo-Daten entfernen', 'removeDemoData')
