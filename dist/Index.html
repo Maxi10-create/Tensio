@@ -1040,7 +1040,6 @@ table.stats tr:last-child td { border-bottom: 0; }
   <div class="group-label">Info</div>
   <div class="list">
     <div class="row"><span class="grow label">Version</span><span class="detail" id="infoVersion"></span></div>
-    <div class="row"><span class="grow label">Angemeldet als</span><span class="detail" id="infoUser"></span></div>
   </div>
   <div class="note-box">
     Tensio ist ein persönliches Werkzeug zur Dokumentation und statistischen Auswertung. Es ist kein Medizinprodukt, stellt keine Diagnosen und gibt keine Therapieempfehlungen.
@@ -1077,7 +1076,6 @@ table.stats tr:last-child td { border-bottom: 0; }
     App.$('#setTz').innerHTML = tzs.map(function (z) { return '<option>' + App.esc(z) + '</option>'; }).join('');
     App.$('#setTz').value = s.timezone;
     App.$('#infoVersion').textContent = b.version;
-    App.$('#infoUser').textContent = b.user && b.user.email ? b.user.email : '–';
   }
 
   function doExport(range) {
