@@ -87,7 +87,12 @@ fs.writeFileSync(path.join(preview, 'index.html'), html);
   const pages = path.join(root, 'docs');
   fs.mkdirSync(pages, { recursive: true });
   let page = fs.readFileSync(path.join(dist, 'Index.html'), 'utf8');
-  page = page.replace('</head>', '  <script src="config.js"></script>\n</head>');
+  // Apps Script setzt viewport & Web-App-Hinweise per addMetaTag; auf GitHub Pages müssen sie im HTML stehen.
+  const metas =
+    '  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' +
+    '  <meta name="apple-mobile-web-app-capable" content="yes">\n' +
+    '  <meta name="mobile-web-app-capable" content="yes">\n';
+  page = page.replace('</head>', metas + '  <script src="config.js"></script>\n</head>');
   fs.writeFileSync(path.join(pages, 'index.html'), page);
   fs.copyFileSync(path.join(root, 'pages/config.js'), path.join(pages, 'config.js'));
   fs.writeFileSync(path.join(pages, '.nojekyll'), '');
