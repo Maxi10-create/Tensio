@@ -44,7 +44,21 @@ const copyDir = (from, ext) => {
   }
 };
 copyDir(path.join(root, 'src/backend'), '.gs');
-copyDir(path.join(root, 'src/frontend'), '.html');
+// Frontend als EINE Datei: alle include()-Bausteine werden in Index.html eingefügt.
+// Apps Script braucht dann nur Index.html (plus die .gs-Dateien und Core.js).
+{
+  const srcDir = path.join(root, 'src/frontend');
+  const INC = /<\?!=\s*include\('([A-Za-z0-9_]+)'\);?\s*\?>/g;
+  const inline = (name, depth = 0) => {
+    if (depth > 5) throw new Error('Include-Tiefe überschritten');
+    const file = path.join(srcDir, name + '.html');
+    if (!fs.existsSync(file)) throw new Error('Include nicht gefunden: ' + name);
+    return fs.readFileSync(file, 'utf8').replace(INC, (_, n) => inline(n, depth + 1));
+  };
+  const single = inline('Index');
+  if (/<\?/.test(single)) throw new Error('Unaufgelöste Template-Tags in dist/Index.html');
+  fs.writeFileSync(path.join(dist, 'Index.html'), single);
+}
 fs.copyFileSync(path.join(root, 'appsscript.json'), path.join(dist, 'appsscript.json'));
 
 // ---------- Vorschau: Templates auflösen wie HtmlService ----------

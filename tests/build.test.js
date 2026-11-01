@@ -16,7 +16,7 @@ test('Build erzeugt clasp-kompatibles dist/ und lauffähigen Kern', () => {
   execFileSync(process.execPath, [path.join(root, 'scripts/build.mjs')], { cwd: root, stdio: 'pipe' });
   const dist = path.join(root, 'dist');
   const files = fs.readdirSync(dist);
-  for (const f of ['Core.js', 'Code.gs', 'Auth.gs', 'Database.gs', 'Index.html', 'Styles.html', 'Scripts.html', 'appsscript.json']) {
+  for (const f of ['Core.js', 'Code.gs', 'Auth.gs', 'Database.gs', 'Index.html', 'appsscript.json']) {
     assert.ok(files.includes(f), f + ' fehlt');
   }
   const manifest = JSON.parse(fs.readFileSync(path.join(dist, 'appsscript.json'), 'utf8'));
