@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <title>Tensio</title>
+  <?!= include('Styles'); ?>
+  <script>
+    /* Registry für Ansichten. Jede Ansicht registriert sich hier, Scripts.html startet die App. */
+    window.TensioViews = {};
+    (function () {
+      try {
+        var t = localStorage.getItem('tensio.theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) { /* Speicher evtl. blockiert */ }
+    })();
+  </script>
+</head>
+<body>
+  <div class="app">
+    <nav class="tabbar" aria-label="Hauptnavigation">
+      <div class="brand"><?!= include('Logo'); ?></div>
+      <button class="tab" data-tab="dashboard" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/><path d="M7.5 12h2.5l1.2-2.5 2 5 1.3-2.5h2"/></svg>
+        <span>Übersicht</span>
+      </button>
+      <button class="tab" data-tab="measurements">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>
+        <span>Messungen</span>
+      </button>
+      <button class="tab-add" id="fab" type="button" aria-label="Neue Messung erfassen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span class="tab-add-label">Neue Messung</span>
+      </button>
+      <button class="tab" data-tab="analytics">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        <span>Analyse</span>
+      </button>
+      <button class="tab" data-tab="profile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+        <span>Profil</span>
+      </button>
+    </nav>
+
+    <main class="content" id="main">
+      <div class="brand-top"><?!= include('Logo'); ?></div>
+      <?!= include('Dashboard'); ?>
+      <?!= include('Measurements'); ?>
+      <?!= include('Analytics'); ?>
+      <?!= include('Profile'); ?>
+    </main>
+  </div>
+
+  <?!= include('Sheets'); ?>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"><span id="toastText"></span><button type="button" id="toastAction" hidden></button></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  <?!= include('Scripts'); ?>
+</body>
+</html>

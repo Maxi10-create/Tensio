@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-preview/
+.clasp.json
+.clasprc.json
+*.log
+.DS_Store
+# Niemals echte Gesundheitsdaten einchecken
+data/
+*.real.csv

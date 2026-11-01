@@ -1,0 +1,220 @@
+<script>
+/* ==========================================================================
+   Tensio Frontend – Kern: API, Zustand, Formatierung, Navigation, Dialoge.
+   Ansichten liegen in Dashboard/Measurements/Analytics/Profile/Sheets.html.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var App = window.App = {
+    state: { boot: null, measurements: null, deleted: null, dashboard: null, version: 0 },
+    views: window.TensioViews,
+    current: 'dashboard'
+  };
+
+  /* ---------- API ---------- */
+  App.api = function (method, payload) {
+    return new Promise(function (resolve, reject) {
+      var body = JSON.stringify(payload || {});
+      var handle = function (json) {
+        var res;
+        try { res = JSON.parse(json); } catch (e) { return reject({ code: 'INTERNAL', message: 'Unerwartete Antwort vom Server.' }); }
+        if (res.ok) resolve(res.data); else reject(res.error || { code: 'INTERNAL', message: 'Unbekannter Fehler.' });
+      };
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(handle)
+          .withFailureHandler(function () { reject({ code: 'NETWORK', message: 'Keine Verbindung zum Server. Bitte Internetverbindung prüfen und erneut versuchen.' }); })
+          .api(method, body);
+      } else if (window.TensioPreviewApi) {
+        setTimeout(function () { handle(window.TensioPreviewApi.call(method, body)); }, 120);
+      } else {
+        reject({ code: 'NETWORK', message: 'Kein Backend verfügbar.' });
+      }
+    });
+  };
+
+  /* ---------- Formatierung ---------- */
+  var MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  var MONTHS_SHORT = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'];
+  var DAYS = ['So.', 'Mo.', 'Di.', 'Mi.', 'Do.', 'Fr.', 'Sa.'];
+
+  function parts(dateStr) {
+    var d = new Date(Date.UTC(+dateStr.slice(0, 4), +dateStr.slice(5, 7) - 1, +dateStr.slice(8, 10)));
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth(), d: d.getUTCDate(), dow: d.getUTCDay() };
+  }
+  App.dayNumber = function (dateStr) {
+    return Math.round(Date.UTC(+dateStr.slice(0, 4), +dateStr.slice(5, 7) - 1, +dateStr.slice(8, 10)) / 86400000);
+  };
+  App.fmt = {
+    date: function (s) { if (!s) return '–'; var p = parts(s); return p.d + '. ' + MONTHS_SHORT[p.m] + ' ' + p.y; },
+    dateLong: function (s) { if (!s) return '–'; var p = parts(s); return DAYS[p.dow] + ', ' + p.d + '. ' + MONTHS[p.m] + ' ' + p.y; },
+    dateShort: function (s) { var p = parts(s); return p.d + '.' + (p.m + 1) + '.'; },
+    dayMonth: function (s) { var p = parts(s); return DAYS[p.dow] + ', ' + p.d + '. ' + MONTHS_SHORT[p.m]; },
+    month: function (key) { return MONTHS[+key.slice(5, 7) - 1] + ' ' + key.slice(0, 4); },
+    relative: function (s, time) {
+      var today = App.state.boot ? App.state.boot.today : null;
+      var label;
+      if (today) {
+        var diff = App.dayNumber(today) - App.dayNumber(s);
+        if (diff === 0) label = 'Heute';
+        else if (diff === 1) label = 'Gestern';
+      }
+      label = label || App.fmt.dayMonth(s);
+      return label + (time ? ', ' + time + ' Uhr' : '');
+    },
+    n: function (v, digits) {
+      if (v === null || v === undefined || isNaN(v)) return '–';
+      return Number(v).toLocaleString('de-DE', { minimumFractionDigits: digits || 0, maximumFractionDigits: digits || 0 });
+    },
+    signed: function (v) {
+      if (v === null || v === undefined) return '–';
+      var r = Math.round(v);
+      return (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r);
+    },
+    pct: function (v) { return v === null || v === undefined ? '–' : Math.round(v * 100) + ' %'; }
+  };
+
+  App.esc = function (s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  };
+  App.$ = function (sel, root) { return (root || document).querySelector(sel); };
+  App.$$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
+  App.cssVar = function (name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); };
+
+  App.labelFor = function (listName, key) {
+    var list = (App.state.boot && App.state.boot.options[listName]) || [];
+    for (var i = 0; i < list.length; i++) if (list[i].key === key) return list[i].label;
+    return key;
+  };
+
+  App.FLAG_LABELS = {
+    systolic_high: 'SYS sehr hoch', systolic_low: 'SYS niedrig',
+    diastolic_high: 'DIA sehr hoch', diastolic_low: 'DIA niedrig',
+    pulse_pressure_low: 'Geringer Abstand', pulse_pressure_high: 'Großer Abstand',
+    pulse_high: 'Puls hoch', pulse_low: 'Puls niedrig'
+  };
+
+  /* ---------- Toast ---------- */
+  var toastTimer;
+  App.toast = function (text, action) {
+    var t = App.$('#toast'), btn = App.$('#toastAction');
+    App.$('#toastText').textContent = text;
+    btn.hidden = !action;
+    btn.onclick = null;
+    if (action) {
+      btn.textContent = action.label;
+      btn.onclick = function () { t.classList.remove('show'); action.run(); };
+    }
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, action ? 6000 : 2800);
+  };
+
+  /* ---------- Alert-Dialog (iOS-Stil) ---------- */
+  App.alert = function (o) {
+    return new Promise(function (resolve) {
+      var dlg = App.$('#alertDialog');
+      App.$('#alertTitle').textContent = o.title || '';
+      App.$('#alertMessage').textContent = o.message || '';
+      var list = App.$('#alertList');
+      list.innerHTML = (o.list || []).map(function (x) { return '<li>' + App.esc(x) + '</li>'; }).join('');
+      list.hidden = !(o.list && o.list.length);
+      var actions = App.$('#alertActions');
+      actions.innerHTML = '';
+      (o.actions || [{ label: 'OK', value: true, strong: true }]).forEach(function (a) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = a.label;
+        if (a.strong) b.className = 'strong';
+        if (a.destructive) b.className += ' destructive';
+        b.onclick = function () { dlg.close(); resolve(a.value); };
+        actions.appendChild(b);
+      });
+      dlg.onclose = function () { resolve(undefined); };
+      dlg.showModal();
+    });
+  };
+
+  App.showError = function (err) {
+    App.alert({ title: 'Das hat nicht geklappt', message: (err && err.message) || 'Unbekannter Fehler.' });
+  };
+
+  /* ---------- Theme ---------- */
+  App.applyTheme = function (theme) {
+    var root = document.documentElement;
+    if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
+    else root.removeAttribute('data-theme');
+    try { localStorage.setItem('tensio.theme', theme || 'auto'); } catch (e) { /* ignorieren */ }
+    App.emit('theme');
+  };
+  if (window.matchMedia) {
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    var onMq = function () { App.emit('theme'); };
+    if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
+  }
+
+  /* ---------- Ereignisse ---------- */
+  var listeners = {};
+  App.on = function (name, fn) { (listeners[name] = listeners[name] || []).push(fn); };
+  App.emit = function (name, data) { (listeners[name] || []).forEach(function (fn) { fn(data); }); };
+
+  /** Nach jeder Datenänderung: Caches verwerfen, sichtbare Ansicht neu laden. */
+  App.dataChanged = function () {
+    App.state.measurements = null;
+    App.state.deleted = null;
+    App.state.version++;
+    App.emit('data');
+  };
+
+  App.loadMeasurements = function (force) {
+    if (App.state.measurements && !force) return Promise.resolve(App.state.measurements);
+    return App.api('listMeasurements').then(function (list) { App.state.measurements = list; return list; });
+  };
+
+  /* ---------- Navigation ---------- */
+  App.show = function (name) {
+    App.current = name;
+    App.$$('.tab').forEach(function (t) {
+      if (t.getAttribute('data-tab') === name) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current');
+    });
+    App.$$('.view').forEach(function (v) { v.classList.toggle('active', v.id === 'view-' + name); });
+    window.scrollTo(0, 0);
+    var view = App.views[name];
+    if (view && view.show) view.show();
+  };
+
+  /* ---------- Download (CSV, Bilder) ---------- */
+  App.download = function (filename, content, mime) {
+    var blob = content instanceof Blob ? content : new Blob([content], { type: mime || 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  };
+  App.downloadDataUrl = function (filename, dataUrl) {
+    var a = document.createElement('a');
+    a.href = dataUrl; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  /* ---------- Start ---------- */
+  function start() {
+    Object.keys(App.views).forEach(function (k) { if (App.views[k].init) App.views[k].init(); });
+    App.$$('.tab').forEach(function (t) { t.addEventListener('click', function () { App.show(t.getAttribute('data-tab')); }); });
+    App.$('#fab').addEventListener('click', function () { App.views.sheets.openEntry(); });
+    App.on('data', function () { var v = App.views[App.current]; if (v && v.show) v.show(); });
+
+    App.api('bootstrap').then(function (boot) {
+      App.state.boot = boot;
+      App.applyTheme(boot.settings.theme);
+      App.show('dashboard');
+    }).catch(function (err) {
+      App.$('#main').innerHTML = '<div class="empty"><h3>Tensio konnte nicht geladen werden</h3><p>' + App.esc(err.message) + '</p></div>';
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
