@@ -242,6 +242,7 @@
     var r = function (label, value) { rows.push('<div class="row"><span class="grow label">' + label + '</span><span class="detail">' + value + '</span></div>'); };
     r('Datum', App.esc(App.fmt.dateLong(m.measurement_date)));
     r('Uhrzeit', m.measurement_time ? App.esc(m.measurement_time) + ' Uhr' : 'unbekannt');
+    r('ESH 2023 (Praxis)', m.esh ? App.esc(m.esh.label) : '–');
     r('Puls', m.pulse !== null ? m.pulse + ' /min' : '–');
     r('Pulsdruck', (m.systolic - m.diastolic) + ' mmHg');
     r('Messart', { daily: 'Tägliche Messung', protocol: 'Messprotokoll', event: 'Ereignis' }[m.measurement_type] || App.esc(m.measurement_type));

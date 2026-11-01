@@ -7,8 +7,15 @@
 const Validation = require('./validation');
 const Dates = require('./dates');
 const { AppError, CODES } = require('./errors');
+const Refs = require('../analytics/medicalReferences');
 
 const SHEET = 'Measurements';
+
+/** ESH-2023-Einordnung einer Einzelmessung (Praxis-Schwellen). Nur zur Orientierung. */
+function eshOf(sys, dia) {
+  const c = Refs.categorize('esh-2023', 'office', sys, dia);
+  return c ? { key: c.key, label: c.label } : null;
+}
 
 /** Zerlegt einen gespeicherten Datensatz in Formular-/Anzeigeform. */
 function toView(rec) {
@@ -30,7 +37,8 @@ function toView(rec) {
     source: rec.source || 'app',
     created_at: rec.created_at || '',
     updated_at: rec.updated_at || '',
-    deleted_at: rec.deleted_at || ''
+    deleted_at: rec.deleted_at || '',
+    esh: eshOf(rec.systolic, rec.diastolic)
   };
 }
 

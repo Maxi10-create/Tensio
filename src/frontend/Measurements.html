@@ -90,11 +90,9 @@
     (m.flags || []).forEach(function (f) { pills.push('<span class="pill warn">⚠︎ ' + App.esc(App.FLAG_LABELS[f] || f) + '</span>'); });
     if (m.duplicate_of) pills.push('<span class="pill">Duplikat?</span>');
     if (m.is_valid === false) pills.push('<span class="pill danger">Messfehler</span>');
-    if (m.source === 'historical_import') pills.push('<span class="pill">Import</span>');
-    if ((m.context_tags || []).length || (m.symptoms || []).length || m.notes) pills.push('<span class="pill" title="Kontext oder Notiz vorhanden">✎</span>');
     return '<button type="button" class="row" data-id="' + App.esc(m.id) + '">' +
       '<span class="grow"><span class="label">' + App.esc(App.fmt.dayMonth(m.measurement_date)) + '</span><br>' +
-      '<span class="detail">' + (m.measurement_time ? App.esc(m.measurement_time) + ' Uhr' : 'Uhrzeit unbekannt') + '</span>' +
+      '<span class="detail">' + (m.measurement_time ? App.esc(m.measurement_time) + ' Uhr' : 'Uhrzeit unbekannt') + '</span>' + (m.esh ? '<br><span class="detail">ESH: ' + App.esc(m.esh.label) + '</span>' : '') +
       (pills.length ? '<span class="pills">' + pills.join('') + '</span>' : '') + '</span>' +
       '<span class="row-value"' + (m.is_valid === false ? ' style="text-decoration:line-through;opacity:.6"' : '') + '>' + m.systolic + '/' + m.diastolic +
       '<small>' + (m.pulse !== null ? 'Puls ' + m.pulse : 'mmHg') + '</small></span>' +

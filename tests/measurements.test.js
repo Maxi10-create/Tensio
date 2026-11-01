@@ -120,3 +120,12 @@ test('AuditLog dokumentiert Änderungen ohne Messwerte zu duplizieren', () => {
   const text = JSON.stringify(log);
   assert.ok(!text.includes('131') && !text.includes('privat'));
 });
+
+test('ESH-Einordnung je Einzelmessung (Orientierung)', () => {
+  const t = setup();
+  const a = t.call('createMeasurement', { input: input({ systolic: '128', diastolic: '82' }) });
+  assert.equal(a.esh.key, 'normal');
+  const b = t.call('createMeasurement', { input: input({ systolic: '145', diastolic: '85', measurement_time: '08:00' }) });
+  assert.equal(b.esh.key, 'grade1');
+  assert.equal(t.call('listMeasurements').find(m => m.id === a.id).esh.key, 'normal');
+});

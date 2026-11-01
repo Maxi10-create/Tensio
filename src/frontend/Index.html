@@ -29,6 +29,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>
         <span>Messungen</span>
       </button>
+      <button class="tab-add" id="fab" type="button" aria-label="Neue Messung erfassen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span class="tab-add-label">Neue Messung</span>
+      </button>
       <button class="tab" data-tab="analytics">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
         <span>Analyse</span>
@@ -45,11 +49,6 @@
       <?!= include('Analytics'); ?>
       <?!= include('Profile'); ?>
     </main>
-
-    <button class="fab" id="fab" type="button" aria-label="Neue Messung erfassen">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-      <span>Messung</span>
-    </button>
   </div>
 
   <?!= include('Sheets'); ?>
